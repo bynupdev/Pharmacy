@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}Resolve Alert{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="fas fa-check-circle"></i> Resolve Alert</h1>
+        </div>
+        <div class="col text-end">
+            <a href="/inventory/alerts/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Alerts
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Confirm Alert Resolution</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Alert Details -->
+                    <div class="alert {% if alert.alert_type == 'low_stock' %}alert-danger{% else %}alert-warning{% endif %}">
+                        <h6>Alert Details:</h6>
+                        <p><strong>Type:</strong> {{ alert.get_alert_type_display }}</p>
+                        <p><strong>Drug:</strong> {{ alert.batch.drug.name }} ({{ alert.batch.drug.strength }})</p>
+                        <p><strong>Batch:</strong> {{ alert.batch.batch_number }}</p>
+                        <p><strong>Message:</strong> {{ alert.message }}</p>
+                        <p><strong>Created:</strong> {{ alert.created_at|date:"F d, Y H:i" }}</p>
+                    </div>
+
+                    <!-- Current Status -->
+                    <div class="mb-4">
+                        <h6>Current Batch Status:</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <th>Current Quantity:</th>
+                                <td>
+                                    <span class="badge {% if alert.batch.quantity < 50 %}bg-danger{% elif alert.batch.quantity < 100 %}bg-warning{% else %}bg-success{% endif %}">
+                                        {{ alert.batch.quantity }} units
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Expiry Date:</th>
+                                <td>
+                                    {{ alert.batch.expiry_date|date:"F d, Y" }}
+                                    {% if alert.batch.is_expired %}
+                                        <span class="badge bg-danger">Expired</span>
+                                    {% elif alert.batch.days_until_expiry <= 30 %}
+                                        <span class="badge bg-warning">{{ alert.batch.days_until_expiry }} days left</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Resolution Notes</label>
+                            <textarea name="notes" class="form-control" rows="4" 
+                                      placeholder="Describe how this alert was resolved (e.g., 'Restocked with new batch', 'Expired items removed', etc.)"></textarea>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Marking this alert as resolved will remove it from the active alerts list.
+                        </div>
+
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check"></i> Confirm Resolution
+                        </button>
+                        <a href="/inventory/alerts/" class="btn btn-secondary">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Verify Prescription{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="fas fa-check-circle"></i> Verify Prescription</h1>
+            <p class="text-muted">Prescription #: {{ prescription.prescription_number }}</p>
+        </div>
+        <div class="col text-end">
+            <a href="/prescriptions/{{ prescription.id }}/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">Verification Required</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Please review the prescription details carefully before verifying.
+                    </div>
+
+                    <!-- Prescription Summary -->
+                    <div class="mb-4">
+                        <h6>Prescription Details:</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <th>Patient:</th>
+                                <td>{{ prescription.patient.full_name }} (Age: {{ prescription.patient.age }})</td>
+                            </tr>
+                            <tr>
+                                <th>Prescribed By:</th>
+                                <td>{{ prescription.prescribed_by }}</td>
+                            </tr>
+                            <tr>
+                                <th>Prescribed Date:</th>
+                                <td>{{ prescription.prescribed_date|date:"M d, Y" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Medications -->
+                    <div class="mb-4">
+                        <h6>Medications:</h6>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Drug</th>
+                                    <th>Dosage</th>
+                                    <th>Frequency</th>
+                                    <th>Duration</th>
+                                    <th>Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in prescription.items.all %}
+                                <tr>
+                                    <td>{{ item.drug.name }} ({{ item.drug.strength }})</td>
+                                    <td>{{ item.dosage }}</td>
+                                    <td>{{ item.frequency }}</td>
+                                    <td>{{ item.duration }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Verification Form -->
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form }}
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check-circle"></i> Confirm Verification
+                            </button>
+                            <a href="/prescriptions/{{ prescription.id }}/" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

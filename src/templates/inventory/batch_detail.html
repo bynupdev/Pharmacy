@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block title %}Batch {{ batch.batch_number }} Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>
+                <i class="fas fa-box"></i> Batch Details
+                <small class="text-muted">{{ batch.batch_number }}</small>
+            </h1>
+        </div>
+        <div class="col text-end">
+            <a href="javascript:history.back()" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Batch Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tr>
+                            <th style="width: 40%">Drug:</th>
+                            <td>
+                                <a href="/inventory/{{ batch.drug.id }}/">
+                                    {{ batch.drug.name }} {{ batch.drug.strength }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Batch Number:</th>
+                            <td><strong>{{ batch.batch_number }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Supplier:</th>
+                            <td>
+                                {% if batch.supplier %}
+                                    <a href="/inventory/suppliers/{{ batch.supplier.id }}/">
+                                        {{ batch.supplier.name }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">No supplier</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Quantity:</th>
+                            <td>
+                                <span class="badge {% if batch.quantity < 50 %}bg-danger{% elif batch.quantity < 100 %}bg-warning{% else %}bg-success{% endif %}">
+                                    {{ batch.quantity }} units
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Purchase Price:</th>
+                            <td>${{ batch.purchase_price|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <th>Selling Price:</th>
+                            <td>${{ batch.selling_price|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <th>Manufacture Date:</th>
+                            <td>{{ batch.manufacture_date|date:"F d, Y" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Expiry Date:</th>
+                            <td>
+                                {{ batch.expiry_date|date:"F d, Y" }}
+                                {% if batch.is_expired %}
+                                    <span class="badge bg-danger">Expired</span>
+                                {% elif batch.days_until_expiry <= 30 %}
+                                    <span class="badge bg-warning">{{ batch.days_until_expiry }} days left</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <!-- Financial Summary -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Financial Summary</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tr>
+                            <th>Total Investment:</th>
+                            <td>${{ batch.quantity|multiply:batch.purchase_price|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <th>Expected Revenue:</th>
+                            <td>${{ batch.quantity|multiply:batch.selling_price|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <th>Expected Profit:</th>
+                            <td class="{% if batch.quantity|multiply:batch.selling_price|add:batch.quantity|multiply:batch.purchase_price|floatformat:2 > 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ batch.quantity|multiply:batch.selling_price|add:batch.quantity|multiply:batch.purchase_price|floatformat:2 }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Profit Margin:</th>
+                            <td>
+                                {% with profit=batch.selling_price|add:batch.purchase_price %}
+                                    {% if profit > 0 %}
+                                        {{ profit|divide:batch.purchase_price|multiply:100|floatformat:1 }}%
+                                    {% else %}
+                                        0%
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Status Timeline -->
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Batch Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-3">
+                            <i class="fas fa-check-circle text-success"></i>
+                            <strong>Manufactured:</strong> {{ batch.manufacture_date|date:"F d, Y" }}
+                        </li>
+                        <li class="mb-3">
+                            <i class="fas fa-check-circle text-success"></i>
+                            <strong>Received:</strong> {{ batch.created_at|date:"F d, Y" }}
+                        </li>
+                        <li class="mb-3">
+                            <i class="fas fa-hourglass-half text-warning"></i>
+                            <strong>Expires:</strong> {{ batch.expiry_date|date:"F d, Y" }}
+                            ({{ batch.days_until_expiry }} days from now)
+                        </li>
+                        {% if batch.is_expired %}
+                        <li class="mb-3">
+                            <i class="fas fa-times-circle text-danger"></i>
+                            <strong>Status:</strong> EXPIRED - Do not dispense
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

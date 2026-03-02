@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Edit Prescription{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="fas fa-edit"></i> Edit Prescription</h1>
+            <p class="text-muted">Prescription #: {{ prescription.prescription_number }}</p>
+        </div>
+        <div class="col text-end">
+            <a href="/prescriptions/{{ prescription.id }}/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Edit Prescription Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="prescriptionForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.patient }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.prescribed_by }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.prescribed_date }}
+                            </div>
+                        </div>
+
+                        {{ form.notes }}
+
+                        <hr>
+                        <h6>Current Medications</h6>
+                        
+                        <div id="items-container">
+                            {% for item in items %}
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Drug</label>
+                                            <select class="form-select" name="drug_{{ forloop.counter }}" required>
+                                                <option value="">Select drug...</option>
+                                                {% for drug in drugs %}
+                                                <option value="{{ drug.id }}" {% if drug.id == item.drug.id %}selected{% endif %}>
+                                                    {{ drug.name }} {{ drug.strength }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Dosage</label>
+                                            <input type="text" class="form-control" name="dosage_{{ forloop.counter }}" 
+                                                   value="{{ item.dosage }}" placeholder="e.g., 1 tablet">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Frequency</label>
+                                            <input type="text" class="form-control" name="frequency_{{ forloop.counter }}" 
+                                                   value="{{ item.frequency }}" placeholder="e.g., twice daily">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Duration</label>
+                                            <input type="text" class="form-control" name="duration_{{ forloop.counter }}" 
+                                                   value="{{ item.duration }}" placeholder="e.g., 7 days">
+                                        </div>
+                                        <div class="col-md-1">
+                                            <label class="form-label">Qty</label>
+                                            <input type="number" class="form-control" name="quantity_{{ forloop.counter }}" 
+                                                   value="{{ item.quantity }}" min="1">
+                                        </div>
+                                        <div class="col-md-1">
+                                            <label class="form-label">&nbsp;</label>
+                                            <button type="button" class="btn btn-danger btn-sm d-block" onclick="removeItem(this)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <button type="button" class="btn btn-outline-primary mt-2" onclick="addItem()">
+                            <i class="fas fa-plus"></i> Add Another Drug
+                        </button>
+
+                        <hr>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Prescription
+                            </button>
+                            <a href="/prescriptions/{{ prescription.id }}/" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Item Template -->
+<template id="item-template">
+    <div class="card mb-2">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Drug</label>
+                    <select class="form-select" name="drug_new" required>
+                        <option value="">Select drug...</option>
+                        {% for drug in drugs %}
+                        <option value="{{ drug.id }}">{{ drug.name }} {{ drug.strength }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Dosage</label>
+                    <input type="text" class="form-control" name="dosage_new" placeholder="e.g., 1 tablet">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Frequency</label>
+                    <input type="text" class="form-control" name="frequency_new" placeholder="e.g., twice daily">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Duration</label>
+                    <input type="text" class="form-control" name="duration_new" placeholder="e.g., 7 days">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">Qty</label>
+                    <input type="number" class="form-control" name="quantity_new" value="1" min="1">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="button" class="btn btn-danger btn-sm d-block" onclick="removeItem(this)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let itemCount = {{ items.count }};
+
+function addItem() {
+    const template = document.getElementById('item-template');
+    const clone = template.content.cloneNode(true);
+    document.getElementById('items-container').appendChild(clone);
+    itemCount++;
+}
+
+function removeItem(button) {
+    if (confirm('Remove this item from prescription?')) {
+        button.closest('.card').remove();
+    }
+}
+</script>
+{% endblock %}

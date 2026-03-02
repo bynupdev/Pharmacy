@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block title %}Reports Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="fas fa-chart-bar"></i> Reports Dashboard</h1>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Today's Sales</h5>
+                    <h2>${{ today_sales.total|default:"0"|floatformat:2 }}</h2>
+                    <small>{{ today_sales.count|default:"0" }} transactions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">This Week</h5>
+                    <h2>${{ week_sales.total|default:"0"|floatformat:2 }}</h2>
+                    <small>{{ week_sales.count|default:"0" }} transactions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">This Month</h5>
+                    <h2>${{ month_sales.total|default:"0"|floatformat:2 }}</h2>
+                    <small>{{ month_sales.count|default:"0" }} transactions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Alerts</h5>
+                    <h2>{{ low_stock_count|add:expiring_count }}</h2>
+                    <small>{{ low_stock_count }} low stock, {{ expiring_count }} expiring</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Cards -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-boxes"></i> Inventory Reports</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="/reports/inventory/" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            Inventory Valuation Report
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                        <a href="/reports/low-stock/" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            Low Stock Report
+                            <span class="badge bg-danger rounded-pill">{{ low_stock_count }}</span>
+                        </a>
+                        <a href="/reports/expiry/" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            Expiry Report
+                            <span class="badge bg-warning rounded-pill">{{ expiring_count }}</span>
+                        </a>
+                        <a href="/reports/inventory/?format=csv" class="list-group-item list-group-item-action">
+                            <i class="fas fa-download"></i> Export Inventory
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Sales Reports</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="/reports/sales/" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            Sales Summary
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                        <a href="/reports/sales/?period=weekly" class="list-group-item list-group-item-action">
+                            Weekly Sales Analysis
+                        </a>
+                        <a href="/reports/sales/?period=monthly" class="list-group-item list-group-item-action">
+                            Monthly Sales Analysis
+                        </a>
+                        <a href="/reports/sales/?period=yearly" class="list-group-item list-group-item-action">
+                            Yearly Sales Analysis
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Safety Reports</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="/reports/interactions/" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            Interaction Alerts
+                            <span class="badge bg-warning rounded-pill">{{ interaction_count }}</span>
+                        </a>
+                        <a href="/reports/interactions/?severity=high" class="list-group-item list-group-item-action">
+                            High Risk Interactions
+                            <span class="badge bg-danger rounded-pill">{{ high_risk_count }}</span>
+                        </a>
+                        <a href="/reports/interactions/?overridden=yes" class="list-group-item list-group-item-action">
+                            Overridden Alerts
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Report Form -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Generate Custom Report</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="/reports/export/" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Report Type</label>
+                            <select name="type" class="form-select" required>
+                                <option value="">Select type...</option>
+                                <option value="inventory">Inventory Report</option>
+                                <option value="sales">Sales Report</option>
+                                <option value="expiry">Expiry Report</option>
+                                <option value="interactions">Interactions Report</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Date From</label>
+                            <input type="date" name="date_from" class="form-control" value="{% now 'Y-m-01' %}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Date To</label>
+                            <input type="date" name="date_to" class="form-control" value="{% now 'Y-m-d' %}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Format</label>
+                            <select name="format" class="form-select">
+                                <option value="csv">CSV</option>
+                                <option value="excel">Excel</option>
+                                <option value="pdf">PDF</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-download"></i> Generate Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh dashboard data every 5 minutes
+setTimeout(function() {
+    location.reload();
+}, 300000);
+</script>
+{% endblock %}

@@ -1,0 +1,349 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Batch for {{ drug.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>
+                <i class="fas fa-plus-circle"></i> Add New Batch
+                <small class="text-muted">for {{ drug.name }} {{ drug.strength }}</small>
+            </h1>
+        </div>
+        <div class="col text-end">
+            <a href="javascript:history.back()" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Batch Information</h5>
+                </div>
+                <div class="card-body">
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <strong>Please correct the following errors:</strong>
+                        <ul class="mb-0">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li><strong>{{ field|title }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <form method="post" id="batchForm">
+                        {% csrf_token %}
+                        
+                        <!-- Batch Number -->
+                        <div class="mb-3">
+                            <label for="{{ form.batch_number.id_for_label }}" class="form-label">Batch/Lot Number <span class="text-danger">*</span></label>
+                            <input type="text" 
+                                   name="{{ form.batch_number.name }}" 
+                                   id="{{ form.batch_number.id_for_label }}" 
+                                   class="form-control {% if form.batch_number.errors %}is-invalid{% endif %}" 
+                                   value="{{ form.batch_number.value|default:'' }}" 
+                                   placeholder="e.g., BATCH-2025-001" 
+                                   required>
+                            {% if form.batch_number.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.batch_number.errors.0 }}
+                            </div>
+                            {% endif %}
+                            <small class="text-muted">Unique identifier for this batch/lot</small>
+                        </div>
+
+                        <!-- Supplier -->
+                        <div class="mb-3">
+                            <label for="{{ form.supplier.id_for_label }}" class="form-label">Supplier</label>
+                            <select name="{{ form.supplier.name }}" 
+                                    id="{{ form.supplier.id_for_label }}" 
+                                    class="form-select {% if form.supplier.errors %}is-invalid{% endif %}">
+                                <option value="">-- Select Supplier --</option>
+                                {% for supplier in form.fields.supplier.queryset %}
+                                <option value="{{ supplier.id }}" {% if form.supplier.value == supplier.id %}selected{% endif %}>
+                                    {{ supplier.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if form.supplier.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.supplier.errors.0 }}
+                            </div>
+                            {% endif %}
+                            <small class="text-muted">
+                                <a href="/inventory/suppliers/add/" target="_blank">+ Add New Supplier</a>
+                            </small>
+                        </div>
+
+                        <div class="row">
+                            <!-- Quantity -->
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.quantity.id_for_label }}" class="form-label">Quantity <span class="text-danger">*</span></label>
+                                <input type="number" 
+                                       name="{{ form.quantity.name }}" 
+                                       id="{{ form.quantity.id_for_label }}" 
+                                       class="form-control {% if form.quantity.errors %}is-invalid{% endif %}" 
+                                       value="{{ form.quantity.value|default:'' }}" 
+                                       min="0" 
+                                       step="1" 
+                                       required>
+                                {% if form.quantity.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.quantity.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Purchase Price -->
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.purchase_price.id_for_label }}" class="form-label">Purchase Price ($) <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" 
+                                           name="{{ form.purchase_price.name }}" 
+                                           id="{{ form.purchase_price.id_for_label }}" 
+                                           class="form-control {% if form.purchase_price.errors %}is-invalid{% endif %}" 
+                                           value="{{ form.purchase_price.value|default:'' }}" 
+                                           step="0.01" 
+                                           min="0" 
+                                           required>
+                                </div>
+                                {% if form.purchase_price.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.purchase_price.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Selling Price -->
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.selling_price.id_for_label }}" class="form-label">Selling Price ($) <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" 
+                                           name="{{ form.selling_price.name }}" 
+                                           id="{{ form.selling_price.id_for_label }}" 
+                                           class="form-control {% if form.selling_price.errors %}is-invalid{% endif %}" 
+                                           value="{{ form.selling_price.value|default:'' }}" 
+                                           step="0.01" 
+                                           min="0" 
+                                           required>
+                                </div>
+                                {% if form.selling_price.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.selling_price.errors.0 }}
+                                </div>
+                                {% endif %}
+                                <small class="profit-indicator text-muted"></small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Manufacture Date -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.manufacture_date.id_for_label }}" class="form-label">Manufacture Date <span class="text-danger">*</span></label>
+                                <input type="date" 
+                                       name="{{ form.manufacture_date.name }}" 
+                                       id="{{ form.manufacture_date.id_for_label }}" 
+                                       class="form-control {% if form.manufacture_date.errors %}is-invalid{% endif %}" 
+                                       value="{{ form.manufacture_date.value|date:'Y-m-d'|default:'' }}" 
+                                       max="{% now 'Y-m-d' %}" 
+                                       required>
+                                {% if form.manufacture_date.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.manufacture_date.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Expiry Date -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.expiry_date.id_for_label }}" class="form-label">Expiry Date <span class="text-danger">*</span></label>
+                                <input type="date" 
+                                       name="{{ form.expiry_date.name }}" 
+                                       id="{{ form.expiry_date.id_for_label }}" 
+                                       class="form-control {% if form.expiry_date.errors %}is-invalid{% endif %}" 
+                                       value="{{ form.expiry_date.value|date:'Y-m-d'|default:'' }}" 
+                                       min="{% now 'Y-m-d' %}" 
+                                       required>
+                                {% if form.expiry_date.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.expiry_date.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Drug Information (hidden) -->
+                        <input type="hidden" name="drug" value="{{ drug.id }}">
+
+                        <!-- Summary Card -->
+                        <div class="card mt-3 mb-3 bg-light">
+                            <div class="card-body">
+                                <h6>Batch Summary</h6>
+                                <div class="row">
+                                    <div class="col-sm-6">
+                                        <small>Drug:</small><br>
+                                        <strong>{{ drug.name }} {{ drug.strength }}</strong>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <small>Total Investment:</small><br>
+                                        <strong class="total-investment">$0.00</strong>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-sm-6">
+                                        <small>Expected Revenue:</small><br>
+                                        <strong class="expected-revenue">$0.00</strong>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <small>Expected Profit:</small><br>
+                                        <strong class="expected-profit text-success">$0.00</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Warning Alerts -->
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>System will automatically:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Add this batch to inventory</li>
+                                <li>Calculate profit margin</li>
+                                <li>Create expiry alert 30 days before expiration</li>
+                                <li>Update total stock count</li>
+                            </ul>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save"></i> Add Batch
+                            </button>
+                            <a href="/inventory/{{ drug.id }}/" class="btn btn-secondary btn-lg">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const purchaseInput = document.getElementById('id_purchase_price');
+    const sellingInput = document.getElementById('id_selling_price');
+    const quantityInput = document.getElementById('id_quantity');
+    const manufactureInput = document.getElementById('id_manufacture_date');
+    const expiryInput = document.getElementById('id_expiry_date');
+    
+    // Calculate profit and update summary
+    function updateSummary() {
+        const purchase = parseFloat(purchaseInput?.value) || 0;
+        const selling = parseFloat(sellingInput?.value) || 0;
+        const quantity = parseInt(quantityInput?.value) || 0;
+        
+        const totalInvestment = purchase * quantity;
+        const totalRevenue = selling * quantity;
+        const profit = totalRevenue - totalInvestment;
+        const margin = totalInvestment > 0 ? (profit / totalInvestment * 100) : 0;
+        
+        // Update summary
+        document.querySelector('.total-investment').textContent = `$${totalInvestment.toFixed(2)}`;
+        document.querySelector('.expected-revenue').textContent = `$${totalRevenue.toFixed(2)}`;
+        const profitElement = document.querySelector('.expected-profit');
+        profitElement.textContent = `$${profit.toFixed(2)}`;
+        profitElement.className = profit >= 0 ? 'expected-profit text-success' : 'expected-profit text-danger';
+        
+        // Update profit indicator
+        const indicator = document.querySelector('.profit-indicator');
+        if (profit > 0) {
+            indicator.innerHTML = `Profit: $${profit.toFixed(2)} (${margin.toFixed(1)}% margin)`;
+            indicator.style.color = 'green';
+        } else if (profit < 0) {
+            indicator.innerHTML = `Loss: $${Math.abs(profit).toFixed(2)} (selling below cost)`;
+            indicator.style.color = 'red';
+        } else {
+            indicator.innerHTML = '';
+        }
+    }
+    
+    // Validate dates
+    function validateDates() {
+        if (manufactureInput?.value && expiryInput?.value) {
+            const manufacture = new Date(manufactureInput.value);
+            const expiry = new Date(expiryInput.value);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            if (manufacture > expiry) {
+                alert('Manufacture date cannot be after expiry date');
+                manufactureInput.value = '';
+                return false;
+            }
+            
+            if (expiry < today) {
+                alert('Cannot add already expired batch');
+                expiryInput.value = '';
+                return false;
+            }
+            
+            // Check if expiring soon
+            const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+            if (daysUntilExpiry <= 30) {
+                if (!confirm(`This batch expires in ${daysUntilExpiry} days. Are you sure you want to add it?`)) {
+                    expiryInput.value = '';
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    
+    // Add event listeners
+    if (purchaseInput) purchaseInput.addEventListener('input', updateSummary);
+    if (sellingInput) sellingInput.addEventListener('input', updateSummary);
+    if (quantityInput) quantityInput.addEventListener('input', updateSummary);
+    
+    if (manufactureInput) {
+        manufactureInput.addEventListener('change', validateDates);
+    }
+    
+    if (expiryInput) {
+        expiryInput.addEventListener('change', validateDates);
+    }
+    
+    // Initial calculation
+    updateSummary();
+    
+    // Form submission validation
+    document.getElementById('batchForm')?.addEventListener('submit', function(e) {
+        const expiry = new Date(expiryInput.value);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        
+        if (expiry < today) {
+            e.preventDefault();
+            alert('Cannot add expired batch');
+        }
+    });
+});
+</script>
+
+<style>
+.profit-indicator {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.9em;
+}
+</style>
+{% endblock %}

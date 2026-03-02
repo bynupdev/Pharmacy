@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+
+{% block title %}Expiry Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="fas fa-calendar-times"></i> Expiry Report</h1>
+        </div>
+        <div class="col text-end">
+            <a href="/reports/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Reports
+            </a>
+            <a href="/reports/export/expiry/" class="btn btn-success">
+                <i class="fas fa-download"></i> Export CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h6>Expiring Soon (30 days)</h6>
+                    <h3>{{ expiring_count }}</h3>
+                    <small>batches</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <h6>Expired</h6>
+                    <h3>{{ expired_count }}</h3>
+                    <small>batches</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h6>Value at Risk</h6>
+                    <h3>${{ expiring_value|floatformat:2 }}</h3>
+                    <small>expiring soon</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-secondary">
+                <div class="card-body">
+                    <h6>Loss from Expired</h6>
+                    <h3>${{ expired_value|floatformat:2 }}</h3>
+                    <small>total cost</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Expiring Soon -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">Expiring Within 30 Days</h5>
+                </div>
+                <div class="card-body">
+                    {% if expiring_soon %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Drug</th>
+                                    <th>Batch</th>
+                                    <th>Quantity</th>
+                                    <th>Expiry Date</th>
+                                    <th>Days Left</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for batch in expiring_soon %}
+                                <tr>
+                                    <td>{{ batch.drug.name }}</td>
+                                    <td>{{ batch.batch_number }}</td>
+                                    <td>{{ batch.quantity }}</td>
+                                    <td>{{ batch.expiry_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge {% if batch.days_until_expiry <= 7 %}bg-danger{% else %}bg-warning{% endif %}">
+                                            {{ batch.days_until_expiry }} days
+                                        </span>
+                                    </td>
+                                    <td>${{ batch.quantity|multiply:batch.purchase_price|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No batches expiring soon.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Already Expired -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Expired Batches</h5>
+                </div>
+                <div class="card-body">
+                    {% if expired %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Drug</th>
+                                    <th>Batch</th>
+                                    <th>Quantity</th>
+                                    <th>Expiry Date</th>
+                                    <th>Days Overdue</th>
+                                    <th>Loss</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for batch in expired %}
+                                <tr>
+                                    <td>{{ batch.drug.name }}</td>
+                                    <td>{{ batch.batch_number }}</td>
+                                    <td>{{ batch.quantity }}</td>
+                                    <td>{{ batch.expiry_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-danger">
+                                            {{ batch.days_until_expiry|abs }} days
+                                        </span>
+                                    </td>
+                                    <td class="text-danger">${{ batch.quantity|multiply:batch.purchase_price|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No expired batches.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

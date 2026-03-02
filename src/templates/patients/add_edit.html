@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if edit_mode %}Edit{% else %}Add New{% endif %} Patient{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>
+                <i class="fas fa-user-{% if edit_mode %}edit{% else %}plus{% endif %}"></i>
+                {% if edit_mode %}Edit{% else %}Add New{% endif %} Patient
+            </h1>
+        </div>
+        <div class="col text-end">
+            <a href="/patients/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Patients
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Patient Information</h5>
+                </div>
+                <div class="card-body">
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <strong>Please correct the following errors:</strong>
+                        <ul>
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name *</label>
+                                <input type="text" name="{{ form.first_name.name }}" id="{{ form.first_name.id_for_label }}" 
+                                       class="form-control" value="{{ form.first_name.value|default:'' }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name *</label>
+                                <input type="text" name="{{ form.last_name.name }}" id="{{ form.last_name.id_for_label }}" 
+                                       class="form-control" value="{{ form.last_name.value|default:'' }}" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.date_of_birth.id_for_label }}" class="form-label">Date of Birth *</label>
+                                <input type="date" name="{{ form.date_of_birth.name }}" id="{{ form.date_of_birth.id_for_label }}" 
+                                       class="form-control" value="{{ form.date_of_birth.value|date:'Y-m-d'|default:'' }}" 
+                                       max="{% now 'Y-m-d' %}" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.gender.id_for_label }}" class="form-label">Gender *</label>
+                                <select name="{{ form.gender.name }}" id="{{ form.gender.id_for_label }}" class="form-select" required>
+                                    <option value="">Select gender...</option>
+                                    <option value="M" {% if form.gender.value == 'M' %}selected{% endif %}>Male</option>
+                                    <option value="F" {% if form.gender.value == 'F' %}selected{% endif %}>Female</option>
+                                    <option value="O" {% if form.gender.value == 'O' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.blood_type.id_for_label }}" class="form-label">Blood Type</label>
+                                <select name="{{ form.blood_type.name }}" id="{{ form.blood_type.id_for_label }}" class="form-select">
+                                    <option value="">Select blood type...</option>
+                                    {% for value, label in form.fields.blood_type.choices %}
+                                    <option value="{{ value }}" {% if form.blood_type.value == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.phone.id_for_label }}" class="form-label">Phone Number *</label>
+                                <input type="tel" name="{{ form.phone.name }}" 
+                                       class="form-control" value="{{ form.phone.value|default:'' }}" 
+                                       placeholder="(555) 123-4567" >
+                            </div>
+                            <!-- id="{{ form.phone.id_for_label }}"  -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+                                <input type="email" name="{{ form.email.name }}" id="{{ form.email.id_for_label }}" 
+                                       class="form-control" value="{{ form.email.value|default:'' }}">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.address.id_for_label }}" class="form-label">Address *</label>
+                            <textarea name="{{ form.address.name }}" id="{{ form.address.id_for_label }}" 
+                                      class="form-control" rows="2" required>{{ form.address.value|default:'' }}</textarea>
+                        </div>
+
+                        <hr>
+                        <h6 class="mb-3">Medical Information</h6>
+
+                        <div class="mb-3">
+                            <label for="{{ form.allergies.id_for_label }}" class="form-label">Allergies</label>
+                            <textarea name="{{ form.allergies.name }}" id="{{ form.allergies.id_for_label }}" 
+                                      class="form-control" rows="2" 
+                                      placeholder="List all known allergies (separated by commas)">{{ form.allergies.value|default:'' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.chronic_conditions.id_for_label }}" class="form-label">Chronic Conditions</label>
+                            <textarea name="{{ form.chronic_conditions.name }}" id="{{ form.chronic_conditions.id_for_label }}" 
+                                      class="form-control" rows="2" 
+                                      placeholder="List any chronic conditions">{{ form.chronic_conditions.value|default:'' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.current_medications.id_for_label }}" class="form-label">Current Medications</label>
+                            <textarea name="{{ form.current_medications.name }}" id="{{ form.current_medications.id_for_label }}" 
+                                      class="form-control" rows="2" 
+                                      placeholder="List current medications">{{ form.current_medications.value|default:'' }}</textarea>
+                        </div>
+
+                        <hr>
+                        <h6 class="mb-3">Emergency Contact</h6>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.emergency_contact_name.id_for_label }}" class="form-label">Contact Name *</label>
+                                <input type="text" name="{{ form.emergency_contact_name.name }}" 
+                                       id="{{ form.emergency_contact_name.id_for_label }}" 
+                                       class="form-control" value="{{ form.emergency_contact_name.value|default:'' }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.emergency_contact_phone.id_for_label }}" class="form-label">Contact Phone *</label>
+                                <input type="tel" name="{{ form.emergency_contact_phone.name }}" 
+                                        
+                                       class="form-control" value="{{ form.emergency_contact_phone.value|default:'' }}">
+                            </div>
+                            <!-- id="{{ form.emergency_contact_phone.id_for_label }}" -->
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 
+                                {% if edit_mode %}Update{% else %}Save{% endif %} Patient
+                            </button>
+                            <a href="/patients/" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-format phone number
+// document.getElementById('id_phone')?.addEventListener('input', function(e) {
+//     let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,4})/);
+//     e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+// });
+
+// document.getElementById('id_emergency_contact_phone')?.addEventListener('input', function(e) {
+//     let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,4})/);
+//     e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+// });
+
+// Calculate age from DOB (optional)
+document.getElementById('id_date_of_birth')?.addEventListener('change', function(e) {
+    const dob = new Date(e.target.value);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+        age--;
+    }
+    if (age > 120) {
+        alert('Please verify the date of birth - age exceeds 120 years');
+    }
+});
+</script>
+{% endblock %}

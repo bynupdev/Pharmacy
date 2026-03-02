@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>API Debug Tool</h1>
+    
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5>Test Interaction API</h5>
+        </div>
+        <div class="card-body">
+            <form id="debugForm">
+                <div class="mb-3">
+                    <label class="form-label">Patient ID</label>
+                    <input type="number" id="patient_id" class="form-control" value="1" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Drug IDs (comma separated)</label>
+                    <input type="text" id="drug_ids" class="form-control" value="1,2" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Test API</button>
+            </form>
+            
+            <hr>
+            
+            <h6>Response:</h6>
+            <pre id="response" class="bg-light p-3" style="min-height: 100px;"></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('debugForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const patientId = document.getElementById('patient_id').value;
+    const drugIds = document.getElementById('drug_ids').value.split(',').map(id => parseInt(id.trim()));
+    
+    const items = drugIds.map(id => ({
+        drug_id: id,
+        dosage: '1 tablet',
+        frequency: 'once daily',
+        duration: '30 days',
+        quantity: 30
+    }));
+    
+    fetch('/prescriptions/api/check-interactions/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            patient_id: parseInt(patientId),
+            items: items
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+    })
+    .catch(error => {
+        document.getElementById('response').textContent = 'Error: ' + error;
+    });
+});
+</script>
+{% endblock %}

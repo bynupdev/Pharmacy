@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+
+{% block title %}Stock Alerts{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="fas fa-exclamation-triangle"></i> Stock Alerts</h1>
+        </div>
+        <div class="col text-end">
+            <a href="/inventory/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Inventory
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <h6>High Priority</h6>
+                    <h3>{{ alerts.paginator.count|default:0 }}</h3>
+                    <small>unresolved alerts</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h6>Low Stock</h6>
+                    <h3>{{ low_stock_count|default:0 }}</h3>
+                    <small>items</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h6>Expiring Soon</h6>
+                    <h3>{{ expiring_count|default:0 }}</h3>
+                    <small>batches</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-secondary">
+                <div class="card-body">
+                    <h6>Resolved</h6>
+                    <h3>{{ resolved_count|default:0 }}</h3>
+                    <small>alerts</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Filter Alerts</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Alert Type</label>
+                    <select name="type" class="form-select">
+                        <option value="">All Types</option>
+                        {% for value, label in alert_types %}
+                        <option value="{{ value }}" {% if alert_type == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="unresolved" {% if status == 'unresolved' %}selected{% endif %}>Unresolved</option>
+                        <option value="resolved" {% if status == 'resolved' %}selected{% endif %}>Resolved</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter"></i> Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Alerts Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Alert List</h5>
+            <span class="badge bg-primary">{{ alerts.paginator.count }} total</span>
+        </div>
+        <div class="card-body">
+            {% if alerts %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Drug/Batch</th>
+                            <th>Alert Message</th>
+                            <th>Created</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alert in alerts %}
+                        <tr class="{% if not alert.is_resolved and alert.alert_type == 'low_stock' %}table-danger{% elif not alert.is_resolved and alert.alert_type == 'expiry' %}table-warning{% endif %}">
+                            <td>
+                                <span class="badge {% if alert.alert_type == 'low_stock' %}bg-danger{% elif alert.alert_type == 'expiry' %}bg-warning{% else %}bg-info{% endif %}">
+                                    {{ alert.get_alert_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>{{ alert.batch.drug.name }}</strong><br>
+                                <small class="text-muted">Batch: {{ alert.batch.batch_number }}</small>
+                            </td>
+                            <td>{{ alert.message }}</td>
+                            <td>{{ alert.created_at|date:"M d, Y H:i" }}</td>
+                            <td>
+                                {% if alert.is_resolved %}
+                                    <span class="badge bg-success">Resolved</span><br>
+                                    <small>{{ alert.resolved_at|date:"M d, Y" }}</small>
+                                {% else %}
+                                    <span class="badge bg-danger">Active</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if not alert.is_resolved %}
+                                <button class="btn btn-sm btn-success" onclick="resolveAlert({{ alert.id }})">
+                                    <i class="fas fa-check"></i> Resolve
+                                </button>
+                                {% endif %}
+                                <button class="btn btn-sm btn-info" onclick="viewBatch({{ alert.batch.id }})">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if alerts.paginator.num_pages > 1 %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if alerts.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if alert_type %}&type={{ alert_type }}{% endif %}{% if status %}&status={{ status }}{% endif %}">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ alerts.previous_page_number }}{% if alert_type %}&type={{ alert_type }}{% endif %}{% if status %}&status={{ status }}{% endif %}">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in alerts.paginator.page_range %}
+                        {% if alerts.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > alerts.number|add:'-3' and num < alerts.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if alert_type %}&type={{ alert_type }}{% endif %}{% if status %}&status={{ status }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if alerts.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ alerts.next_page_number }}{% if alert_type %}&type={{ alert_type }}{% endif %}{% if status %}&status={{ status }}{% endif %}">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ alerts.paginator.num_pages }}{% if alert_type %}&type={{ alert_type }}{% endif %}{% if status %}&status={{ status }}{% endif %}">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                <h5>No Alerts</h5>
+                <p>All inventory items are at healthy levels.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Resolve Alert Modal -->
+<div class="modal fade" id="resolveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Resolve Alert</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="resolveForm" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>Are you sure you want to mark this alert as resolved?</p>
+                    <div class="mb-3">
+                        <label class="form-label">Resolution Notes (optional)</label>
+                        <textarea name="notes" class="form-control" rows="3" 
+                                  placeholder="Add notes about how this was resolved..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Resolve Alert</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentAlertId = null;
+
+function resolveAlert(alertId) {
+    currentAlertId = alertId;
+    document.getElementById('resolveForm').action = `/inventory/alerts/${alertId}/resolve/`;
+    new bootstrap.Modal(document.getElementById('resolveModal')).show();
+}
+
+function viewBatch(batchId) {
+    window.location.href = `/inventory/batches/${batchId}/`;
+}
+
+// Auto-refresh alerts every 5 minutes
+setTimeout(function() {
+    location.reload();
+}, 300000);
+</script>
+{% endblock %}

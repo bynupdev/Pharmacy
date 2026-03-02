@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}Inventory Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="fas fa-boxes"></i> Inventory Report</h1>
+        </div>
+        <div class="col text-end">
+            <a href="/reports/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Reports
+            </a>
+            <a href="/reports/export/inventory/" class="btn btn-success">
+                <i class="fas fa-download"></i> Export CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h6>Total Drugs</h6>
+                    <h3>{{ drug_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h6>Total Value</h6>
+                    <h3>${{ total_value|floatformat:2 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h6>Total Cost</h6>
+                    <h3>${{ total_cost|floatformat:2 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h6>Potential Profit</h6>
+                    <h3>${{ total_profit|floatformat:2 }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Current Inventory Status</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Drug Name</th>
+                            <th>Generic Name</th>
+                            <th>Total Stock</th>
+                            <th>Batches</th>
+                            <th>Nearest Expiry</th>
+                            <th>Total Value</th>
+                            <th>Total Cost</th>
+                            <th>Potential Profit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in report_data %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.drug.name }}</strong>
+                                <br><small class="text-muted">{{ item.drug.strength }}</small>
+                            </td>
+                            <td>{{ item.drug.generic_name }}</td>
+                            <td>
+                                <span class="badge {% if item.total_quantity < 50 %}bg-danger{% elif item.total_quantity < 100 %}bg-warning{% else %}bg-success{% endif %}">
+                                    {{ item.total_quantity }}
+                                </span>
+                            </td>
+                            <td>{{ item.batches_count }}</td>
+                            <td>
+                                {% if item.nearest_expiry %}
+                                    {% if item.nearest_expiry < today %}
+                                        <span class="badge bg-danger">Expired</span>
+                                    {% elif item.nearest_expiry <= today|date:'Y-m-d'|add_days:30 %}
+                                        <span class="badge bg-warning">{{ item.nearest_expiry|date:"M d, Y" }}</span>
+                                    {% else %}
+                                        {{ item.nearest_expiry|date:"M d, Y" }}
+                                    {% endif %}
+                                {% else %}
+                                    No stock
+                                {% endif %}
+                            </td>
+                            <td>${{ item.total_value|floatformat:2 }}</td>
+                            <td>${{ item.total_cost|floatformat:2 }}</td>
+                            <td class="{% if item.potential_profit > 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ item.potential_profit|floatformat:2 }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-primary">
+                        <tr>
+                            <th colspan="5" class="text-end">TOTALS:</th>
+                            <th>${{ total_value|floatformat:2 }}</th>
+                            <th>${{ total_cost|floatformat:2 }}</th>
+                            <th>${{ total_profit|floatformat:2 }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

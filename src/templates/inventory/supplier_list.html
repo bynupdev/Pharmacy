@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block title %}Supplier Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="fas fa-truck"></i> Supplier Management</h1>
+        </div>
+        <div class="col text-end">
+            <a href="/inventory/suppliers/add/" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add New Supplier
+            </a>
+        </div>
+    </div>
+
+    <!-- Suppliers Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Supplier List</h5>
+            <span class="badge bg-primary">{{ suppliers.count }} suppliers</span>
+        </div>
+        <div class="card-body">
+            {% if suppliers %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Company Name</th>
+                            <th>Contact Person</th>
+                            <th>Contact Info</th>
+                            <th>Address</th>
+                            <th>Products Supplied</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for supplier in suppliers %}
+                        <tr>
+                            <td>
+                                <strong>{{ supplier.name }}</strong>
+                            </td>
+                            <td>{{ supplier.contact_person|default:"-" }}</td>
+                            <td>
+                                <i class="fas fa-envelope"></i> {{ supplier.email }}<br>
+                                <i class="fas fa-phone"></i> {{ supplier.phone }}
+                            </td>
+                            <td>{{ supplier.address|truncatechars:50 }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ supplier.drug_count }} products</span>
+                            </td>
+                            <td>
+                                <a href="/inventory/suppliers/{{ supplier.id }}/edit/" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button class="btn btn-sm btn-info" onclick="viewSupplierProducts({{ supplier.id }})">
+                                    <i class="fas fa-boxes"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-truck fa-4x mb-3"></i>
+                <h5>No Suppliers Found</h5>
+                <p>Get started by adding your first supplier.</p>
+                <a href="/inventory/suppliers/add/" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Supplier
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Products Modal -->
+<div class="modal fade" id="productsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">Products from <span id="supplierName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table" id="productsTable">
+                        <thead>
+                            <tr>
+                                <th>Drug</th>
+                                <th>Batch #</th>
+                                <th>Quantity</th>
+                                <th>Expiry Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsBody">
+                            <tr>
+                                <td colspan="4" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function viewSupplierProducts(supplierId) {
+    // Get supplier name from the row
+    const row = event.target.closest('tr');
+    const supplierName = row.querySelector('td:first-child').textContent.trim();
+    document.getElementById('supplierName').textContent = supplierName;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('productsModal'));
+    modal.show();
+    
+    // Fetch products
+    fetch(`/inventory/api/supplier/${supplierId}/products/`)
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('productsBody');
+            if (data.products && data.products.length > 0) {
+                tbody.innerHTML = data.products.map(p => `
+                    <tr>
+                        <td>${p.drug_name} (${p.strength})</td>
+                        <td>${p.batch_number}</td>
+                        <td>${p.quantity}</td>
+                        <td>${p.expiry_date}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center">No products from this supplier</td></tr>';
+            }
+        })
+        .catch(error => {
+            document.getElementById('productsBody').innerHTML = 
+                '<tr><td colspan="4" class="text-center text-danger">Error loading products</td></tr>';
+        });
+}
+</script>
+{% endblock %}

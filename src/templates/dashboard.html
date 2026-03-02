@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Welcome Banner -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2>Welcome back, {{ user.get_full_name|default:user.username }}!</h2>
+                            <p class="mb-0">{{ timezone.now|date:"l, F j, Y" }}</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-user-md fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card dashboard-card">
+                <div class="card-body">
+                    <h6 class="text-uppercase">Total Patients</h6>
+                    <h2 class="mb-0">{{ total_patients }}</h2>
+                    <small class="opacity-75">Active patients</small>
+                    <i class="fas fa-users card-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card dashboard-card" style="background: linear-gradient(135deg, #27ae60, #229954);">
+                <div class="card-body">
+                    <h6 class="text-uppercase">Today's Sales</h6>
+                    <h2 class="mb-0">${{ today_revenue|floatformat:2 }}</h2>
+                    <small class="opacity-75">{{ today_sales_count }} transactions</small>
+                    <i class="fas fa-dollar-sign card-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card dashboard-card" style="background: linear-gradient(135deg, #e67e22, #d35400);">
+                <div class="card-body">
+                    <h6 class="text-uppercase">Pending Rx</h6>
+                    <h2 class="mb-0">{{ pending_prescriptions }}</h2>
+                    <small class="opacity-75">Awaiting processing</small>
+                    <i class="fas fa-prescription card-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card dashboard-card" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">
+                <div class="card-body">
+                    <h6 class="text-uppercase">Low Stock Alerts</h6>
+                    <h2 class="mb-0">{{ low_stock_alerts }}</h2>
+                    <small class="opacity-75">Need reorder</small>
+                    <i class="fas fa-exclamation-triangle card-icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Prescriptions -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-prescription"></i> Recent Prescriptions</h5>
+                    <a href="{% url 'prescriptions:list' %}" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Rx #</th>
+                                    <th>Patient</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rx in recent_prescriptions %}
+                                <tr>
+                                    <td>{{ rx.prescription_number }}</td>
+                                    <td>{{ rx.patient.full_name }}</td>
+                                    <td>{{ rx.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge {% if rx.status == 'pending' %}bg-warning{% elif rx.status == 'verified' %}bg-info{% elif rx.status == 'dispensed' %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {{ rx.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'prescriptions:detail' rx.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No recent prescriptions</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expiring Soon -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-calendar-times"></i> Expiring Soon</h5>
+                    <a href="{% url 'reports:expiry' %}" class="btn btn-sm btn-primary">View Report</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Drug</th>
+                                    <th>Batch</th>
+                                    <th>Quantity</th>
+                                    <th>Expiry Date</th>
+                                    <th>Days Left</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for batch in expiring_soon %}
+                                <tr>
+                                    <td>{{ batch.drug.name }}</td>
+                                    <td>{{ batch.batch_number }}</td>
+                                    <td>{{ batch.quantity }}</td>
+                                    <td>{{ batch.expiry_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge {% if batch.days_until_expiry <= 7 %}bg-danger{% elif batch.days_until_expiry <= 15 %}bg-warning{% else %}bg-info{% endif %}">
+                                            {{ batch.days_until_expiry }} days
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No expiring items</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <a href="{% url 'prescriptions:create' %}" class="btn btn-outline-primary w-100 py-3">
+                                <i class="fas fa-prescription fa-2x mb-2"></i><br>
+                                New Prescription
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'patients:add' %}" class="btn btn-outline-success w-100 py-3">
+                                <i class="fas fa-user-plus fa-2x mb-2"></i><br>
+                                Add Patient
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'inventory:add' %}" class="btn btn-outline-info w-100 py-3">
+                                <i class="fas fa-boxes fa-2x mb-2"></i><br>
+                                Add Drug
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'sales:pos' %}" class="btn btn-outline-warning w-100 py-3">
+                                <i class="fas fa-cash-register fa-2x mb-2"></i><br>
+                                Point of Sale
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh dashboard data every 5 minutes
+setTimeout(function() {
+    location.reload();
+}, 300000);
+</script>
+{% endblock %}

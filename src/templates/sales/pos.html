@@ -1,0 +1,383 @@
+{% extends 'base.html' %}
+
+{% block title %}Point of Sale{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="fas fa-cash-register"></i> Point of Sale</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Product Search and Cart -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-search"></i> Search Products</h5>
+                </div>
+                <div class="card-body">
+                    <div class="input-group mb-3">
+                        <input type="text" id="product-search" class="form-control form-control-lg" 
+                               placeholder="Search by drug name or scan barcode..." autofocus>
+                        <button class="btn btn-primary" type="button" id="search-btn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <div id="search-results" class="list-group" style="max-height: 300px; overflow-y: auto;"></div>
+                </div>
+            </div>
+
+            <!-- Cart -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-shopping-cart"></i> Current Sale</h5>
+                    <button class="btn btn-sm btn-danger" onclick="clearCart()">
+                        <i class="fas fa-trash"></i> Clear Cart
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table" id="cart-table">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Price</th>
+                                    <th>Qty</th>
+                                    <th>Total</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cart-items">
+                                <tr id="empty-cart">
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        <i class="fas fa-shopping-cart fa-3x mb-3"></i>
+                                        <p>Cart is empty. Search and add items to continue.</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot id="cart-footer" style="display: none;">
+                                <tr>
+                                    <th colspan="3" class="text-end">Subtotal:</th>
+                                    <th id="subtotal">$0.00</th>
+                                    <th></th>
+                                </tr>
+                                <tr>
+                                    <th colspan="3" class="text-end">Tax (10%):</th>
+                                    <th id="tax">$0.00</th>
+                                    <th></th>
+                                </tr>
+                                <tr>
+                                    <th colspan="3" class="text-end">Discount:</th>
+                                    <th>
+                                        <input type="number" id="discount" class="form-control form-control-sm" 
+                                               style="width: 100px;" value="0" min="0" step="0.01">
+                                    </th>
+                                    <th></th>
+                                </tr>
+                                <tr class="table-primary">
+                                    <th colspan="3" class="text-end">TOTAL:</th>
+                                    <th id="total">$0.00</th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Section -->
+        <div class="col-md-4">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-credit-card"></i> Payment</h5>
+                </div>
+                <div class="card-body">
+                    <form id="payment-form">
+                        <div class="mb-3">
+                            <label class="form-label">Payment Method</label>
+                            <select id="payment-method" class="form-select" required>
+                                <option value="">Select payment method...</option>
+                                <option value="cash">Cash</option>
+                                <option value="card">Credit/Debit Card</option>
+                                <option value="insurance">Insurance</option>
+                                <option value="mobile">Mobile Money</option>
+                            </select>
+                        </div>
+
+                        <div id="payment-reference-group" style="display: none;" class="mb-3">
+                            <label class="form-label">Reference Number</label>
+                            <input type="text" id="payment-reference" class="form-control" 
+                                   placeholder="Transaction ID / Reference">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Amount Tendered</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" id="amount-tendered" class="form-control" 
+                                       step="0.01" min="0" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Change Due</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="text" id="change-due" class="form-control" readonly value="0.00">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-lg w-100" id="complete-sale" disabled>
+                            <i class="fas fa-check-circle"></i> Complete Sale
+                        </button>
+                    </form>
+
+                    <hr>
+
+                    <div class="text-center text-muted">
+                        <small>Today's Date: {% now "F j, Y" %}</small><br>
+                        <small>Cashier: {{ user.get_full_name }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Item Template for Cart -->
+<template id="cart-item-template">
+    <tr class="cart-item">
+        <td>
+            <strong class="item-name"></strong><br>
+            <small class="item-details text-muted"></small>
+        </td>
+        <td class="item-price">$0.00</td>
+        <td>
+            <input type="number" class="form-control form-control-sm item-quantity" 
+                   value="1" min="1" style="width: 80px;">
+        </td>
+        <td class="item-total">$0.00</td>
+        <td>
+            <button class="btn btn-sm btn-danger remove-item">
+                <i class="fas fa-times"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let cart = [];
+let searchTimeout;
+
+// Product Search
+document.getElementById('product-search').addEventListener('input', function(e) {
+    clearTimeout(searchTimeout);
+    const query = e.target.value.trim();
+    
+    if (query.length < 2) {
+        document.getElementById('search-results').innerHTML = '';
+        return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+        fetch(`/sales/api/search-drugs/?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                displaySearchResults(data.results);
+            });
+    }, 300);
+});
+
+function displaySearchResults(results) {
+    const container = document.getElementById('search-results');
+    
+    if (results.length === 0) {
+        container.innerHTML = '<div class="list-group-item text-muted">No products found</div>';
+        return;
+    }
+    
+    container.innerHTML = results.map(item => `
+        <a href="#" class="list-group-item list-group-item-action" onclick="addToCart(${JSON.stringify(item).replace(/"/g, '&quot;')}); return false;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${item.name}</strong> ${item.strength}<br>
+                    <small class="text-muted">Batch: ${item.batch_number} | Qty: ${item.quantity_available}</small>
+                </div>
+                <div class="text-end">
+                    <strong>$${item.price.toFixed(2)}</strong><br>
+                    <small class="text-success">Click to add</small>
+                </div>
+            </div>
+        </a>
+    `).join('');
+}
+
+// Cart Functions
+function addToCart(item) {
+    const existingItem = cart.find(i => i.id === item.id);
+    
+    if (existingItem) {
+        if (existingItem.quantity < item.quantity_available) {
+            existingItem.quantity++;
+        } else {
+            alert('Maximum available quantity reached');
+            return;
+        }
+    } else {
+        cart.push({
+            id: item.id,
+            name: item.name,
+            details: `${item.strength} - Batch: ${item.batch_number}`,
+            price: item.price,
+            quantity: 1,
+            maxQuantity: item.quantity_available
+        });
+    }
+    
+    updateCartDisplay();
+    document.getElementById('product-search').value = '';
+    document.getElementById('search-results').innerHTML = '';
+}
+
+function updateCartDisplay() {
+    const tbody = document.getElementById('cart-items');
+    const footer = document.getElementById('cart-footer');
+    const emptyCart = document.getElementById('empty-cart');
+    
+    if (cart.length === 0) {
+        emptyCart.style.display = '';
+        footer.style.display = 'none';
+        document.getElementById('complete-sale').disabled = true;
+        return;
+    }
+    
+    emptyCart.style.display = 'none';
+    footer.style.display = '';
+    
+    // Clear and rebuild cart
+    tbody.innerHTML = '';
+    cart.forEach((item, index) => {
+        const template = document.getElementById('cart-item-template');
+        const clone = template.content.cloneNode(true);
+        const row = clone.querySelector('tr');
+        
+        row.querySelector('.item-name').textContent = item.name;
+        row.querySelector('.item-details').textContent = item.details;
+        row.querySelector('.item-price').textContent = `$${item.price.toFixed(2)}`;
+        row.querySelector('.item-quantity').value = item.quantity;
+        row.querySelector('.item-quantity').max = item.maxQuantity;
+        row.querySelector('.item-total').textContent = `$${(item.price * item.quantity).toFixed(2)}`;
+        
+        // Quantity change handler
+        row.querySelector('.item-quantity').addEventListener('change', function(e) {
+            let newQty = parseInt(e.target.value);
+            if (newQty < 1) newQty = 1;
+            if (newQty > item.maxQuantity) {
+                newQty = item.maxQuantity;
+                alert(`Maximum available quantity is ${item.maxQuantity}`);
+            }
+            e.target.value = newQty;
+            cart[index].quantity = newQty;
+            updateCartDisplay();
+        });
+        
+        // Remove item handler
+        row.querySelector('.remove-item').addEventListener('click', function() {
+            cart.splice(index, 1);
+            updateCartDisplay();
+        });
+        
+        tbody.appendChild(row);
+    });
+    
+    calculateTotals();
+    document.getElementById('complete-sale').disabled = false;
+}
+
+function calculateTotals() {
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const discount = parseFloat(document.getElementById('discount').value) || 0;
+    const tax = subtotal * 0.1; // 10% tax
+    const total = subtotal + tax - discount;
+    
+    document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+    document.getElementById('tax').textContent = `$${tax.toFixed(2)}`;
+    document.getElementById('total').textContent = `$${total.toFixed(2)}`;
+    
+    // Calculate change
+    const tendered = parseFloat(document.getElementById('amount-tendered').value) || 0;
+    const change = tendered - total;
+    document.getElementById('change-due').value = change >= 0 ? change.toFixed(2) : '0.00';
+}
+
+function clearCart() {
+    if (confirm('Are you sure you want to clear the cart?')) {
+        cart = [];
+        updateCartDisplay();
+    }
+}
+
+// Event Listeners
+document.getElementById('discount').addEventListener('input', calculateTotals);
+document.getElementById('amount-tendered').addEventListener('input', calculateTotals);
+
+document.getElementById('payment-method').addEventListener('change', function() {
+    const refGroup = document.getElementById('payment-reference-group');
+    refGroup.style.display = this.value !== 'cash' ? 'block' : 'none';
+});
+
+// Complete Sale
+document.getElementById('payment-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const total = parseFloat(document.getElementById('total').textContent.replace('$', ''));
+    const tendered = parseFloat(document.getElementById('amount-tendered').value);
+    
+    if (tendered < total) {
+        alert('Amount tendered must be at least the total amount');
+        return;
+    }
+    
+    const saleData = {
+        items: cart.map(item => ({
+            batch_id: item.id,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.price * item.quantity
+        })),
+        subtotal: parseFloat(document.getElementById('subtotal').textContent.replace('$', '')),
+        discount: parseFloat(document.getElementById('discount').value) || 0,
+        tax: parseFloat(document.getElementById('tax').textContent.replace('$', '')),
+        total: total,
+        payment_method: document.getElementById('payment-method').value,
+        payment_reference: document.getElementById('payment-reference').value
+    };
+    
+    fetch('/sales/create/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(saleData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = `/sales/${data.sale_id}/receipt/`;
+        } else {
+            alert('Error processing sale');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+    });
+});
+</script>
+{% endblock %}

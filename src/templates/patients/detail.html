@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ patient.full_name }} - Patient Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>
+                <i class="fas fa-user"></i> {{ patient.full_name }}
+                <small class="text-muted">Patient ID: {{ patient.id }}</small>
+            </h1>
+        </div>
+        <div class="col text-end">
+            <a href="/patients/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+            <a href="/patients/{{ patient.id }}/edit/" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            <a href="/prescriptions/create/?patient={{ patient.id }}" class="btn btn-success">
+                <i class="fas fa-prescription"></i> New Prescription
+            </a>
+        </div>
+    </div>
+
+    <!-- Patient Information Cards -->
+    <div class="row">
+        <!-- Personal Information -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-id-card"></i> Personal Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Full Name:</th>
+                            <td>{{ patient.full_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Date of Birth:</th>
+                            <td>{{ patient.date_of_birth|date:"M d, Y" }} ({{ patient.age }} years)</td>
+                        </tr>
+                        <tr>
+                            <th>Gender:</th>
+                            <td>{{ patient.get_gender_display }}</td>
+                        </tr>
+                        <tr>
+                            <th>Blood Type:</th>
+                            <td>
+                                <span class="badge bg-info">{{ patient.blood_type|default:"Not specified" }}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Registered:</th>
+                            <td>{{ patient.created_at|date:"M d, Y" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-address-book"></i> Contact Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><i class="fas fa-phone"></i> {{ patient.phone }}</p>
+                    {% if patient.email %}
+                    <p><i class="fas fa-envelope"></i> {{ patient.email }}</p>
+                    {% endif %}
+                    <p><i class="fas fa-map-marker-alt"></i> {{ patient.address|linebreaksbr }}</p>
+                    
+                    <hr>
+                    <h6>Emergency Contact</h6>
+                    <p><strong>{{ patient.emergency_contact_name }}</strong><br>
+                    <i class="fas fa-phone"></i> {{ patient.emergency_contact_phone }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Medical Information -->
+        <div class="col-md-8">
+            <!-- Allergies -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-allergies"></i> Allergies</h5>
+                    <a href="/patients/{{ patient.id }}/add-allergy/" class="btn btn-sm btn-warning">
+                        <i class="fas fa-plus"></i> Add Allergy
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if allergies %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Allergen</th>
+                                    <th>Severity</th>
+                                    <th>Reaction</th>
+                                    <th>Diagnosed</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for allergy in allergies %}
+                                <tr>
+                                    <td>{{ allergy.allergen }}</td>
+                                    <td>
+                                        <span class="badge {% if allergy.severity == 'severe' %}bg-danger{% elif allergy.severity == 'moderate' %}bg-warning{% else %}bg-info{% endif %}">
+                                            {{ allergy.get_severity_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ allergy.reaction|truncatechars:50 }}</td>
+                                    <td>{{ allergy.diagnosed_date|date:"M d, Y"|default:"N/A" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No known allergies.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Chronic Conditions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-notes-medical"></i> Chronic Conditions</h5>
+                </div>
+                <div class="card-body">
+                    {% if patient.chronic_conditions %}
+                    <p>{{ patient.chronic_conditions|linebreaksbr }}</p>
+                    {% else %}
+                    <p class="text-muted mb-0">No chronic conditions recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Current Medications -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-pills"></i> Current Medications</h5>
+                </div>
+                <div class="card-body">
+                    {% if patient.current_medications %}
+                    <p>{{ patient.current_medications|linebreaksbr }}</p>
+                    {% else %}
+                    <p class="text-muted mb-0">No current medications recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Prescriptions -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-prescription"></i> Recent Prescriptions</h5>
+                    <a href="/patients/{{ patient.id }}/prescriptions/" class="btn btn-sm btn-primary">
+                        View All ({{ prescription_count }})
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if prescriptions %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Prescription #</th>
+                                    <th>Prescribed By</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rx in prescriptions %}
+                                <tr>
+                                    <td>{{ rx.created_at|date:"M d, Y" }}</td>
+                                    <td>{{ rx.prescription_number }}</td>
+                                    <td>{{ rx.prescribed_by }}</td>
+                                    <td>
+                                        <span class="badge {% if rx.status == 'dispensed' %}bg-success{% elif rx.status == 'pending' %}bg-warning{% elif rx.status == 'verified' %}bg-info{% else %}bg-secondary{% endif %}">
+                                            {{ rx.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="/prescriptions/{{ rx.id }}/" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No prescriptions found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
