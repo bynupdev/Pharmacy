@@ -9,7 +9,7 @@ from django.core.paginator import Paginator
 import json
 from datetime import datetime
 from .models import Prescription, PrescriptionItem, InteractionLog
-from .interaction_engine import DrugInteractionEngine
+from .ai_interaction_engine import AIDrugInteractionEngine
 from patients.models import Patient
 from inventory.models import Drug, Batch
 from .forms import PrescriptionForm, PrescriptionItemForm, PrescriptionVerifyForm
@@ -289,7 +289,7 @@ def prescription_print(request, pk):
         'items': items
     })
 
-from .ai_interaction_engine import AIDrugInteractionEngine
+
 
 # Initialize AI engine (singleton)
 ai_engine = AIDrugInteractionEngine()
@@ -322,14 +322,17 @@ def check_interactions_api(request):
         
         temp_items = []
         for item in items:
-            drug = Drug.objects.get(id=item['drug_id'])
-            temp_items.append(TempItem(
-                drug=drug,
-                dosage=item.get('dosage', '1 tablet'),
-                frequency=item.get('frequency', 'once daily'),
-                duration=item.get('duration', '7 days'),
-                quantity=item.get('quantity', 1)
-            ))
+            try:
+                drug = Drug.objects.get(id=item['drug_id'])
+                temp_items.append(TempItem(
+                    drug=drug,
+                    dosage=item.get('dosage', '1 tablet'),
+                    frequency=item.get('frequency', 'once daily'),
+                    duration=item.get('duration', '7 days'),
+                    quantity=item.get('quantity', 1)
+                ))
+            except Drug.DoesNotExist:
+                return JsonResponse({'error': f"Drug with ID {item['drug_id']} not found"}, status=400)
         
         class TempPrescription:
             def __init__(self, patient, items):
@@ -338,8 +341,18 @@ def check_interactions_api(request):
         
         temp_prescription = TempPrescription(patient, temp_items)
         
-        # Use AI engine
-        alerts = ai_engine.check_prescription(temp_prescription, request.user)
+        # Use AI engine with fallback
+        alerts = []
+        if ai_engine:
+            try:
+                alerts = ai_engine.check_prescription(temp_prescription, request.user)
+            except Exception as e:
+                print(f"🤖 AI Engine error during check: {e}")
+                # Fallback to simple rule-based checks
+                alerts = simple_interaction_check(patient, temp_items)
+        else:
+            # Fallback if AI engine not initialized
+            alerts = simple_interaction_check(patient, temp_items)
         
         print(f"🤖 AI Engine generated {len(alerts)} alerts")
         
@@ -351,11 +364,49 @@ def check_interactions_api(request):
             'high_risk_count': sum(1 for a in alerts if a.get('severity') == 'high')
         })
         
+    except Patient.DoesNotExist:
+        return JsonResponse({'error': 'Patient not found'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
         print(f"🤖 AI Engine error: {str(e)}")
         import traceback
         traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)
+
+def simple_interaction_check(patient, items):
+    """Simple fallback interaction checker"""
+    alerts = []
+    
+    # Check allergies
+    if patient and hasattr(patient, 'allergies') and patient.allergies:
+        allergies = [a.strip().lower() for a in patient.allergies.split(',')]
+        
+        for item in items:
+            drug_name = item.drug.name.lower()
+            for allergy in allergies:
+                if allergy and allergy in drug_name:
+                    alerts.append({
+                        'type': 'drug-allergy',
+                        'severity': 'high',
+                        'drug': item.drug.name,
+                        'allergen': allergy,
+                        'description': f'Patient is allergic to {allergy}',
+                        'recommendation': 'DO NOT DISPENSE. Choose alternative.'
+                    })
+    
+    # Check quantities
+    for item in items:
+        if item.quantity > 100:
+            alerts.append({
+                'type': 'dosage-warning',
+                'severity': 'moderate',
+                'drug': item.drug.name,
+                'description': f'High quantity: {item.quantity} units',
+                'recommendation': 'Verify with prescriber'
+            })
+    
+    return alerts
 
 @login_required
 @require_http_methods(["POST"])

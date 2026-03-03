@@ -49,8 +49,8 @@ class InteractionLog(models.Model):
         ('high', 'High Risk'),
     )
     
-    prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name='interaction_logs')
-    drug_1 = models.ForeignKey(Drug, on_delete=models.CASCADE, related_name='interactions_as_drug1')
+    prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name='interaction_logs', null=True, blank=True)
+    drug_1 = models.ForeignKey(Drug, on_delete=models.CASCADE, related_name='interactions_as_drug1', null=True, blank=True)
     drug_2 = models.ForeignKey(Drug, on_delete=models.CASCADE, related_name='interactions_as_drug2', null=True, blank=True)
     interaction_type = models.CharField(max_length=50)  # drug-drug, drug-allergy, drug-food, etc.
     severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES)
@@ -59,6 +59,7 @@ class InteractionLog(models.Model):
     overridden_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='overridden_interactions')
     overridden_at = models.DateTimeField(null=True, blank=True)
     override_reason = models.TextField(blank=True)
+    ai_confidence = models.IntegerField(default=0, help_text="AI confidence score (0-100)")
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

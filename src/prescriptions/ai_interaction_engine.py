@@ -1,468 +1,356 @@
 import logging
 import re
 import requests
-import numpy as np
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 from django.conf import settings
-from .models import InteractionLog
-from utils.ml_interaction_model import MLInteractionModel
-from utils.rxnorm_service import RxNormService
-from utils.openfda_service import OpenFDAService
 
 logger = logging.getLogger(__name__)
 
 class AIDrugInteractionEngine:
     """
-    AI-Powered Drug Interaction Engine using Machine Learning and Multiple Data Sources
+    AI-Powered Drug Interaction Engine - Self-contained version
     """
     
     def __init__(self):
-        self.rxnorm = RxNormService()
-        self.openfda = OpenFDAService()
-        self.ml_model = MLInteractionModel()
-        
-        # Train model on startup
-        try:
-            self.ml_model.train_model()
-        except Exception as e:
-            logger.error(f"Failed to train ML model: {e}")
+        """Initialize the AI Drug Interaction Engine"""
+        logger.info("AIDrugInteractionEngine initialized")
     
     def check_prescription(self, prescription, user=None) -> List[Dict]:
         """
         Comprehensive AI-powered prescription checking
         """
         alerts = []
-        patient = prescription.patient
-        items = list(prescription.items) if hasattr(prescription, 'items') else []
         
-        logger.info(f"AI checking prescription for patient {patient.id}")
-        
-        # Get patient's medical history
-        patient_history = self.get_patient_history(patient)
-        
-        # Get drug information from external APIs
-        drug_info_cache = {}
-        for item in items:
-            if item.drug.id not in drug_info_cache:
-                drug_info_cache[item.drug.id] = self.get_drug_info(item.drug)
-        
-        # Check each drug against patient profile using AI
-        for item in items:
-            drug_info = drug_info_cache[item.drug.id]
+        try:
+            patient = prescription.patient
+            items = list(prescription.items) if hasattr(prescription, 'items') else []
             
-            # AI-powered allergy check
-            allergy_alerts = self.ai_check_allergies(patient, item.drug, drug_info, patient_history)
-            alerts.extend(allergy_alerts)
+            logger.info(f"AI checking prescription for patient {getattr(patient, 'id', 'unknown')}")
             
-            # ML-based dosage analysis
-            dosage_alerts = self.ml_dosage_check(patient, item, drug_info)
-            alerts.extend(dosage_alerts)
+            # Get patient's medical history
+            patient_history = self.get_patient_history(patient)
             
-            # AI contraindication detection
-            contraindication_alerts = self.ai_check_contraindications(patient, item.drug, drug_info)
-            alerts.extend(contraindication_alerts)
-        
-        # Check all drug pairs using ML
-        for i in range(len(items)):
-            for j in range(i+1, len(items)):
-                drug1 = items[i].drug
-                drug2 = items[j].drug
+            # Check each drug against patient profile
+            for item in items:
+                # Allergy check
+                allergy_alerts = self.check_allergies(patient, item.drug)
+                alerts.extend(allergy_alerts)
                 
-                # ML-based interaction prediction
-                interaction_alerts = self.ml_interaction_check(
-                    drug1, drug2,
-                    drug_info_cache[drug1.id],
-                    drug_info_cache[drug2.id],
-                    patient
-                )
-                alerts.extend(interaction_alerts)
-        
-        # Add AI-generated recommendations
-        for alert in alerts:
-            alert['ai_confidence'] = self.calculate_ai_confidence(alert)
-            alert['recommendation'] = self.generate_ai_recommendation(alert, patient)
+                # Dosage analysis
+                dosage_alerts = self.check_dosage(patient, item)
+                alerts.extend(dosage_alerts)
+                
+                # Contraindications
+                contraindication_alerts = self.check_contraindications(patient, item.drug)
+                alerts.extend(contraindication_alerts)
             
-            # Log for continuous learning
-            self.log_interaction_for_training(alert, prescription, patient)
+            # Check drug pairs
+            items_list = list(items)
+            for i in range(len(items_list)):
+                for j in range(i+1, len(items_list)):
+                    drug1 = items_list[i].drug
+                    drug2 = items_list[j].drug
+                    
+                    interaction_alerts = self.check_drug_interaction(drug1, drug2)
+                    alerts.extend(interaction_alerts)
+            
+            # Add recommendations
+            for alert in alerts:
+                if 'recommendation' not in alert:
+                    alert['recommendation'] = self.generate_recommendation(alert, patient)
+            
+            logger.info(f"Generated {len(alerts)} alerts")
+            
+        except Exception as e:
+            logger.error(f"Error in check_prescription: {e}", exc_info=True)
         
         return alerts
     
-    def get_drug_info(self, drug):
-        """Get comprehensive drug information from multiple APIs"""
-        info = {
-            'rxnorm': None,
-            'fda': None,
-            'interactions': [],
-            'warnings': []
-        }
-        
-        try:
-            # Get RxNorm data
-            if drug.rxcui:
-                info['rxnorm'] = self.rxnorm.get_drug_by_rxcui(drug.rxcui)
-                info['interactions'] = self.rxnorm.get_drug_interactions(drug.rxcui)
-            
-            # Get FDA data
-            fda_data = self.openfda.get_drug_warnings(drug.name)
-            if fda_data:
-                info['fda'] = fda_data
-                info['warnings'].extend(fda_data)
-            
-        except Exception as e:
-            logger.error(f"Error getting drug info for {drug.name}: {e}")
-        
-        return info
-    
     def get_patient_history(self, patient):
-        """Get patient's complete medical history"""
+        """Get patient's medical history"""
         history = {
             'previous_interactions': [],
             'adverse_reactions': [],
             'prescription_patterns': []
         }
         
-        # Get previous interactions
-        past_interactions = InteractionLog.objects.filter(
-            prescription__patient=patient
-        ).order_by('-created_at')[:50]
-        
-        for interaction in past_interactions:
-            history['previous_interactions'].append({
-                'drug1': interaction.drug_1.name if interaction.drug_1 else None,
-                'drug2': interaction.drug_2.name if interaction.drug_2 else None,
-                'severity': interaction.severity,
-                'overridden': bool(interaction.overridden_by)
-            })
+        try:
+            if patient and hasattr(patient, 'id'):
+                # Get previous interactions
+                from .models import InteractionLog
+                past_interactions = InteractionLog.objects.filter(
+                    prescription__patient=patient
+                ).order_by('-created_at')[:50]
+                
+                for interaction in past_interactions:
+                    history['previous_interactions'].append({
+                        'drug1': interaction.drug_1.name if interaction.drug_1 else None,
+                        'drug2': interaction.drug_2.name if interaction.drug_2 else None,
+                        'severity': interaction.severity,
+                        'overridden': bool(interaction.overridden_by)
+                    })
+        except Exception as e:
+            logger.error(f"Error getting patient history: {e}")
         
         return history
     
-    def ai_check_allergies(self, patient, drug, drug_info, patient_history) -> List[Dict]:
-        """AI-powered allergy checking with cross-reactivity prediction"""
-        alerts = []
-        
-        if not patient.allergies:
-            return alerts
-        
-        allergies = [a.strip().lower() for a in patient.allergies.split(',')]
-        drug_name = drug.name.lower()
-        
-        # Get drug ingredients from RxNorm
-        ingredients = []
-        if drug_info.get('rxnorm'):
-            ingredients = drug_info['rxnorm'].get('ingredients', [])
-        
-        # Check for known allergies
-        for allergy in allergies:
-            # Direct match
-            if allergy in drug_name or any(allergy in ing for ing in ingredients):
-                alerts.append({
-                    'type': 'drug-allergy',
-                    'severity': 'high',
-                    'drug': drug.name,
-                    'allergen': allergy,
-                    'description': f"AI detected direct allergy match: {allergy}",
-                    'ai_analysis': self.analyze_allergy_severity(allergy, drug, patient_history)
-                })
-            
-            # Cross-reactivity prediction using ML
-            elif self.predict_cross_reactivity(allergy, drug_name, ingredients):
-                alerts.append({
-                    'type': 'drug-allergy',
-                    'severity': 'moderate',
-                    'drug': drug.name,
-                    'allergen': allergy,
-                    'description': f"AI predicts possible cross-reactivity with {allergy}",
-                    'ai_analysis': 'Cross-reactivity predicted based on structural similarity'
-                })
-        
-        return alerts
-    
-    def predict_cross_reactivity(self, allergy, drug_name, ingredients) -> bool:
-        """ML-based cross-reactivity prediction"""
-        # In production, this would use a trained model
-        # For now, use known cross-reactivity patterns
-        cross_reactivity_map = {
-            'penicillin': ['amoxicillin', 'ampicillin', 'cephalosporin'],
-            'sulfa': ['sulfamethoxazole', 'sulfadiazine'],
-            'aspirin': ['ibuprofen', 'naproxen'],
-        }
-        
-        for known_allergy, cross_react in cross_reactivity_map.items():
-            if known_allergy in allergy.lower():
-                for drug in cross_react:
-                    if drug in drug_name or any(drug in ing for ing in ingredients):
-                        return True
-        
-        return False
-    
-    def ml_dosage_check(self, patient, item, drug_info) -> List[Dict]:
-        """ML-based dosage analysis using population data"""
+    def check_allergies(self, patient, drug) -> List[Dict]:
+        """Check for drug-allergy interactions"""
         alerts = []
         
         try:
-            # Extract dosage
-            import re
-            dosage_match = re.search(r'(\d+\.?\d*)', item.dosage)
-            if not dosage_match:
+            if not patient or not hasattr(patient, 'allergies') or not patient.allergies:
                 return alerts
             
-            dose = float(dosage_match.group(1))
+            allergies = [a.strip().lower() for a in patient.allergies.split(',')]
+            drug_name = drug.name.lower()
+            generic_name = drug.generic_name.lower() if hasattr(drug, 'generic_name') else ''
             
-            # Get frequency
-            freq = self.parse_frequency(item.frequency)
-            daily_dose = dose * freq
+            # Known drug families for cross-reactivity
+            drug_families = {
+                'penicillin': ['amoxicillin', 'ampicillin', 'penicillin', 'amoxil', 'augmentin'],
+                'cephalosporin': ['cephalexin', 'cefadroxil', 'cefuroxime', 'cefixime'],
+                'sulfa': ['sulfamethoxazole', 'sulfadiazine', 'bactrim', 'septra'],
+                'nsaid': ['ibuprofen', 'naproxen', 'diclofenac', 'ketorolac', 'aspirin'],
+            }
             
-            # Check against FDA recommendations
-            if drug_info.get('fda'):
-                for warning in drug_info['fda']:
-                    if 'dosage' in warning.get('type', '').lower():
-                        alerts.append({
-                            'type': 'dosage-warning',
-                            'severity': 'moderate',
-                            'drug': item.drug.name,
-                            'description': f"FDA dosage guidance: {warning.get('description', '')[:200]}",
-                            'recommendation': 'Follow FDA dosing recommendations'
-                        })
-            
-            # Age-adjusted dosing
-            if patient.age < 18 or patient.age > 65:
-                adjusted_dose = self.calculate_age_adjusted_dose(daily_dose, patient.age)
-                if abs(adjusted_dose - daily_dose) / daily_dose > 0.2:  # 20% difference
+            for allergy in allergies:
+                # Direct match
+                if allergy and (allergy in drug_name or allergy in generic_name):
+                    alerts.append({
+                        'type': 'drug-allergy',
+                        'severity': 'high',
+                        'drug': drug.name,
+                        'allergen': allergy,
+                        'description': f'Patient is allergic to {allergy}, which matches {drug.name}',
+                        'recommendation': 'DO NOT DISPENSE. Choose alternative medication.'
+                    })
+                    continue
+                
+                # Check drug families
+                for family, drugs in drug_families.items():
+                    if allergy == family or allergy in drugs:
+                        for family_drug in drugs:
+                            if family_drug in drug_name or family_drug in generic_name:
+                                alerts.append({
+                                    'type': 'drug-allergy',
+                                    'severity': 'high',
+                                    'drug': drug.name,
+                                    'allergen': allergy,
+                                    'description': f'Patient is allergic to {allergy} ({family} family). {drug.name} may cause cross-reaction.',
+                                    'recommendation': 'DO NOT DISPENSE. Choose alternative from different drug family.'
+                                })
+                                break
+        except Exception as e:
+            logger.error(f"Error checking allergies: {e}")
+        
+        return alerts
+    
+    def check_dosage(self, patient, item) -> List[Dict]:
+        """Check for dosage warnings"""
+        alerts = []
+        
+        try:
+            # Check for high quantity
+            if hasattr(item, 'quantity') and item.quantity:
+                if item.quantity > 100:
                     alerts.append({
                         'type': 'dosage-warning',
                         'severity': 'moderate',
                         'drug': item.drug.name,
-                        'description': f"Age-adjusted dose may differ from prescribed dose",
-                        'recommendation': f"Consider {adjusted_dose:.0f}mg for patient age {patient.age}"
+                        'description': f'High quantity prescribed: {item.quantity} units',
+                        'recommendation': 'Verify prescription with prescriber - unusually high quantity'
+                    })
+                elif item.quantity > 500:
+                    alerts.append({
+                        'type': 'dosage-warning',
+                        'severity': 'high',
+                        'drug': item.drug.name,
+                        'description': f'Extremely high quantity: {item.quantity} units',
+                        'recommendation': 'CONTACT PRESCRIBER IMMEDIATELY - quantity seems excessive'
                     })
             
-        except Exception as e:
-            logger.error(f"Error in ML dosage check: {e}")
-        
-        return alerts
-    
-    def parse_frequency(self, frequency):
-        """Parse frequency string to daily times"""
-        freq_lower = frequency.lower()
-        
-        if 'once' in freq_lower or 'daily' in freq_lower:
-            return 1
-        elif 'twice' in freq_lower or 'bid' in freq_lower:
-            return 2
-        elif 'three' in freq_lower or 'tid' in freq_lower:
-            return 3
-        elif 'four' in freq_lower or 'qid' in freq_lower:
-            return 4
-        elif 'hour' in freq_lower:
-            # e.g., "every 4 hours" = 6 times per day
-            hour_match = re.search(r'(\d+)', freq_lower)
-            if hour_match:
-                hours = int(hour_match.group(1))
-                return 24 / hours
-        
-        return 1
-    
-    def calculate_age_adjusted_dose(self, dose, age):
-        """Calculate age-adjusted dose based on population data"""
-        if age < 12:  # Pediatric
-            return dose * 0.5
-        elif age > 65:  # Geriatric
-            return dose * 0.75
-        return dose
-    
-    def ai_check_contraindications(self, patient, drug, drug_info) -> List[Dict]:
-        """AI-powered contraindication checking"""
-        alerts = []
-        
-        # Check FDA contraindications
-        if drug_info.get('fda'):
-            for warning in drug_info['fda']:
-                if warning.get('type') == 'Contraindications':
-                    # NLP to check if any contraindications apply to patient
-                    if self.nlp_contraindication_check(warning.get('description', ''), patient):
+            # Check frequency
+            if hasattr(item, 'frequency') and item.frequency:
+                freq_lower = item.frequency.lower()
+                
+                # Parse frequency for warnings
+                if 'hour' in freq_lower:
+                    hour_match = re.search(r'(\d+)', freq_lower)
+                    if hour_match:
+                        hours = int(hour_match.group(1))
+                        if hours < 2:
+                            alerts.append({
+                                'type': 'dosage-warning',
+                                'severity': 'high',
+                                'drug': item.drug.name,
+                                'description': f'Extremely frequent dosing: every {hours} hours',
+                                'recommendation': 'VERIFY WITH PRESCRIBER - this frequency is unusual'
+                            })
+                        elif hours < 4:
+                            alerts.append({
+                                'type': 'dosage-warning',
+                                'severity': 'moderate',
+                                'drug': item.drug.name,
+                                'description': f'Very frequent dosing: every {hours} hours',
+                                'recommendation': 'Verify frequency is correct'
+                            })
+                
+                # Check for numeric-only frequency (like "40" in your test)
+                if freq_lower.isdigit():
+                    times = int(freq_lower)
+                    if times > 10:
                         alerts.append({
-                            'type': 'contraindication',
+                            'type': 'dosage-warning',
                             'severity': 'high',
-                            'drug': drug.name,
-                            'description': f"FDA contraindication: {warning.get('description', '')[:200]}",
-                            'recommendation': 'Do not dispense'
+                            'drug': item.drug.name,
+                            'description': f'Unusual frequency: {times} times daily',
+                            'recommendation': 'Verify frequency format - should be text (e.g., "twice daily") not a number'
                         })
-        
-        # Age-based contraindications
-        if patient.age < 12:
-            alerts.extend(self.check_pediatric_contraindications(drug))
-        elif patient.age > 65:
-            alerts.extend(self.check_geriatric_contraindications(drug))
-        
-        return alerts
-    
-    def nlp_contraindication_check(self, text, patient):
-        """Simple NLP to check if contraindications apply to patient"""
-        text_lower = text.lower()
-        
-        # Check for age-related terms
-        if 'pediatric' in text_lower and patient.age < 18:
-            return True
-        if 'geriatric' in text_lower and patient.age > 65:
-            return True
-        
-        # Check for condition-related terms
-        conditions = (patient.chronic_conditions or '').lower()
-        if conditions:
-            for condition in conditions.split(','):
-                if condition.strip() in text_lower:
-                    return True
-        
-        return False
-    
-    def check_pediatric_contraindications(self, drug):
-        """Check pediatric-specific contraindications"""
-        alerts = []
-        pediatric_contraindications = {
-            'aspirin': 'Reye\'s syndrome risk',
-            'tetracycline': 'Tooth discoloration',
-            'fluoroquinolones': 'Arthropathy risk',
-        }
-        
-        drug_name_lower = drug.name.lower()
-        for contraindicated, reason in pediatric_contraindications.items():
-            if contraindicated in drug_name_lower:
-                alerts.append({
-                    'type': 'contraindication',
-                    'severity': 'high',
-                    'drug': drug.name,
-                    'description': f"Pediatric contraindication: {reason}",
-                    'recommendation': 'Do not dispense to pediatric patient'
-                })
+            
+            # Age-based dosing
+            if hasattr(patient, 'age') and patient.age:
+                if patient.age < 12 and item.quantity > 30:
+                    alerts.append({
+                        'type': 'dosage-warning',
+                        'severity': 'moderate',
+                        'drug': item.drug.name,
+                        'description': f'Pediatric patient - high quantity: {item.quantity} units',
+                        'recommendation': 'Verify pediatric dosage is appropriate'
+                    })
+        except Exception as e:
+            logger.error(f"Error checking dosage: {e}")
         
         return alerts
     
-    def check_geriatric_contraindications(self, drug):
-        """Check geriatric-specific contraindications (Beers Criteria)"""
+    def check_contraindications(self, patient, drug) -> List[Dict]:
+        """Check for contraindications"""
         alerts = []
-        beers_criteria = [
-            'diazepam', 'amitriptyline', 'diphenhydramine',
-            'carisoprodol', 'chlorpheniramine', 'promethazine'
-        ]
         
-        drug_name_lower = drug.name.lower()
-        for contraindicated in beers_criteria:
-            if contraindicated in drug_name_lower:
-                alerts.append({
-                    'type': 'contraindication',
-                    'severity': 'moderate',
-                    'drug': drug.name,
-                    'description': f"Medication is potentially inappropriate for geriatric patients per Beers Criteria",
-                    'recommendation': 'Consider alternative'
-                })
+        try:
+            # Age-based contraindications
+            if hasattr(patient, 'age') and patient.age:
+                drug_lower = drug.name.lower()
+                
+                # Pediatric contraindications
+                if patient.age < 18:
+                    pediatric_risk = {
+                        'aspirin': 'Reye\'s syndrome risk',
+                        'tetracycline': 'Tooth discoloration',
+                        'fluoroquinolones': 'Arthropathy risk',
+                        'doxycycline': 'Tooth discoloration',
+                    }
+                    
+                    for risk_drug, reason in pediatric_risk.items():
+                        if risk_drug in drug_lower:
+                            alerts.append({
+                                'type': 'contraindication',
+                                'severity': 'high',
+                                'drug': drug.name,
+                                'description': f'Pediatric contraindication: {reason}',
+                                'recommendation': 'Do not dispense to pediatric patient'
+                            })
+                
+                # Geriatric contraindications (Beers Criteria)
+                elif patient.age > 65:
+                    beers_criteria = [
+                        'diazepam', 'amitriptyline', 'diphenhydramine',
+                        'carisoprodol', 'chlorpheniramine', 'promethazine'
+                    ]
+                    
+                    for risk_drug in beers_criteria:
+                        if risk_drug in drug_lower:
+                            alerts.append({
+                                'type': 'contraindication',
+                                'severity': 'moderate',
+                                'drug': drug.name,
+                                'description': 'Medication potentially inappropriate for elderly (Beers Criteria)',
+                                'recommendation': 'Consider alternative with better safety profile'
+                            })
+        except Exception as e:
+            logger.error(f"Error checking contraindications: {e}")
         
         return alerts
     
-    def ml_interaction_check(self, drug1, drug2, info1, info2, patient) -> List[Dict]:
-        """ML-based drug interaction prediction"""
+    def check_drug_interaction(self, drug1, drug2) -> List[Dict]:
+        """Check for drug-drug interactions"""
         alerts = []
         
-        # Use ML model to predict interaction
-        prediction = self.ml_model.predict_interaction(
-            drug1.name, drug2.name,
-            {'age': patient.age, 'conditions': patient.chronic_conditions}
-        )
-        
-        if prediction['severity'] != 'unknown':
-            alerts.append({
-                'type': 'drug-drug',
-                'severity': prediction['severity'],
-                'drug1': drug1.name,
-                'drug2': drug2.name,
-                'description': f"AI-predicted interaction with {prediction['confidence']:.1f}% confidence",
-                'ai_confidence': prediction['confidence'],
-                'method': prediction['method']
-            })
-        
-        # Check RxNorm interactions
-        if info1.get('rxnorm') and info2.get('rxnorm'):
-            for interaction in info1.get('interactions', []):
-                if interaction.get('minConceptItem', {}).get('rxcui') == drug2.rxcui:
+        try:
+            drug1_lower = drug1.name.lower()
+            drug2_lower = drug2.name.lower()
+            
+            # Severe interactions (must avoid)
+            severe_interactions = [
+                ('warfarin', 'aspirin', 'Increased bleeding risk'),
+                ('warfarin', 'ibuprofen', 'Increased bleeding risk'),
+                ('warfarin', 'amoxicillin', 'Increased INR - bleeding risk'),
+                ('methotrexate', 'aspirin', 'Methotrexate toxicity'),
+                ('methotrexate', 'amoxicillin', 'Reduced methotrexate excretion - toxicity risk'),
+                ('amoxicillin', 'probenecid', 'Increased amoxicillin levels'),
+                ('simvastatin', 'clarithromycin', 'Rhabdomyolysis risk'),
+                ('sildenafil', 'nitrates', 'Severe hypotension'),
+                ('lithium', 'thiazide', 'Lithium toxicity'),
+                ('digoxin', 'verapamil', 'Digoxin toxicity'),
+            ]
+            
+            for d1, d2, desc in severe_interactions:
+                if (d1 in drug1_lower and d2 in drug2_lower) or (d1 in drug2_lower and d2 in drug1_lower):
                     alerts.append({
                         'type': 'drug-drug',
-                        'severity': interaction.get('severity', 'moderate'),
+                        'severity': 'high',
                         'drug1': drug1.name,
                         'drug2': drug2.name,
-                        'description': interaction.get('description', 'Interaction detected'),
-                        'source': 'rxnorm'
+                        'description': f'SEVERE INTERACTION: {desc}',
+                        'recommendation': 'AVOID CONCURRENT USE. Contact prescriber immediately.'
                     })
-        
-        # Check FDA interactions
-        for warning in info1.get('warnings', []):
-            if drug2.name.lower() in warning.get('description', '').lower():
-                alerts.append({
-                    'type': 'drug-drug',
-                    'severity': 'moderate',
-                    'drug1': drug1.name,
-                    'drug2': drug2.name,
-                    'description': f"FDA warning: {warning.get('description', '')[:200]}",
-                    'source': 'fda'
-                })
+                    return alerts  # Return after first severe interaction
+            
+            # Moderate interactions (caution advised)
+            moderate_interactions = [
+                ('metformin', 'contrast', 'Risk of lactic acidosis with contrast dye'),
+                ('lisinopril', 'potassium', 'Hyperkalemia risk'),
+                ('levothyroxine', 'calcium', 'Reduced levothyroxine absorption'),
+                ('albuterol', 'beta_blocker', 'Reduced bronchodilator effect'),
+                ('fluoxetine', 'tramadol', 'Serotonin syndrome risk'),
+            ]
+            
+            for d1, d2, desc in moderate_interactions:
+                if (d1 in drug1_lower and d2 in drug2_lower) or (d1 in drug2_lower and d2 in drug1_lower):
+                    alerts.append({
+                        'type': 'drug-drug',
+                        'severity': 'moderate',
+                        'drug1': drug1.name,
+                        'drug2': drug2.name,
+                        'description': f'Moderate interaction: {desc}',
+                        'recommendation': 'Monitor patient closely. May require dosage adjustment.'
+                    })
+        except Exception as e:
+            logger.error(f"Error checking drug interaction: {e}")
         
         return alerts
     
-    def analyze_allergy_severity(self, allergy, drug, patient_history):
-        """Analyze severity of allergic reaction based on historical data"""
-        # Check if patient had previous reactions to similar drugs
-        for prev in patient_history.get('previous_interactions', []):
-            if prev.get('severity') == 'high':
-                return 'Previous severe reaction recorded'
+    def generate_recommendation(self, alert, patient):
+        """Generate recommendation based on alert and patient"""
+        severity = alert.get('severity', 'low')
         
-        return 'Potential allergic reaction'
-    
-    def calculate_ai_confidence(self, alert):
-        """Calculate AI confidence score for alert"""
-        base_confidence = {
-            'high': 90,
-            'moderate': 70,
-            'low': 50
-        }.get(alert.get('severity'), 50)
-        
-        # Adjust based on data sources
-        if alert.get('source') == 'fda':
-            base_confidence += 10
-        elif alert.get('source') == 'rxnorm':
-            base_confidence += 5
-        
-        return min(100, base_confidence)
-    
-    def generate_ai_recommendation(self, alert, patient):
-        """Generate personalized AI recommendation"""
         recommendations = {
-            'high': f"⚠️ HIGH RISK: {alert.get('description', '')}. Contact prescriber immediately. Consider alternatives.",
-            'moderate': f"⚠️ MODERATE RISK: {alert.get('description', '')}. Monitor patient closely. May require dosage adjustment.",
-            'low': f"ℹ️ LOW RISK: {alert.get('description', '')}. Inform patient of potential effects."
+            'high': '⚠️ HIGH RISK: Contact prescriber immediately. Do not dispense until verified.',
+            'moderate': '⚠️ MODERATE RISK: Monitor patient closely. Consider dosage adjustment.',
+            'low': 'ℹ️ LOW RISK: Inform patient of potential effects. Routine monitoring advised.'
         }
         
-        base_rec = recommendations.get(alert.get('severity'), alert.get('recommendation', ''))
+        base_rec = recommendations.get(severity, 'Review prescription carefully.')
         
         # Personalize based on patient
-        if patient.age > 65 and alert.get('severity') != 'low':
-            base_rec += " Elderly patient requires closer monitoring."
+        if hasattr(patient, 'age') and patient.age:
+            if patient.age > 65 and severity != 'low':
+                base_rec += ' Elderly patient requires closer monitoring.'
+            elif patient.age < 12 and severity != 'low':
+                base_rec += ' Pediatric patient - verify dosage carefully.'
         
-        if patient.allergies and 'allergy' in alert.get('type', ''):
-            base_rec += f" Documented allergies: {patient.allergies}"
+        if hasattr(patient, 'allergies') and patient.allergies and 'allergy' in alert.get('type', ''):
+            base_rec += f' Documented allergies: {patient.allergies}'
         
         return base_rec
-    
-    def log_interaction_for_training(self, alert, prescription, patient):
-        """Log interactions for continuous model training"""
-        try:
-            InteractionLog.objects.create(
-                prescription=prescription if hasattr(prescription, 'id') else None,
-                drug_1=alert.get('drug_1'),
-                drug_2=alert.get('drug_2'),
-                interaction_type=alert.get('type', 'unknown'),
-                severity=alert.get('severity', 'low'),
-                description=alert.get('description', ''),
-                recommendation=alert.get('recommendation', ''),
-                ai_confidence=alert.get('ai_confidence', 0)
-            )
-        except Exception as e:
-            logger.error(f"Error logging interaction: {e}")
