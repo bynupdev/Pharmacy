@@ -1,0 +1,417 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Register - Pharmacy Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    .register-container {
+        max-width: 600px;
+        margin: 30px auto;
+    }
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 30px;
+    }
+    .card-header h2 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 600;
+    }
+    .card-header i {
+        font-size: 50px;
+        margin-bottom: 15px;
+    }
+    .card-body {
+        padding: 40px;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        padding: 10px 12px;
+        border: 1px solid #e0e0e0;
+        transition: all 0.3s;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    .btn-register {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        width: 100%;
+        transition: all 0.3s;
+        margin-top: 20px;
+    }
+    .btn-register:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    .password-strength {
+        height: 5px;
+        margin-top: 5px;
+        border-radius: 3px;
+        transition: all 0.3s;
+    }
+    .strength-weak { background-color: #dc3545; width: 25%; }
+    .strength-medium { background-color: #ffc107; width: 50%; }
+    .strength-strong { background-color: #28a745; width: 75%; }
+    .strength-very-strong { background-color: #28a745; width: 100%; }
+    .alert {
+        border-radius: 8px;
+    }
+    .form-text {
+        font-size: 12px;
+        color: #6c757d;
+    }
+    .password-requirements {
+        font-size: 12px;
+        list-style: none;
+        padding-left: 0;
+    }
+    .password-requirements li {
+        margin-bottom: 5px;
+    }
+    .password-requirements li i {
+        width: 20px;
+    }
+    .requirement-met {
+        color: #28a745;
+    }
+    .requirement-not-met {
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="register-container">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-user-plus"></i>
+                <h2>Create Account</h2>
+                <p class="mb-0">Join the Pharmacy Management System</p>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="post" id="registerForm" novalidate>
+                    {% csrf_token %}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.first_name.id_for_label }}">
+                                    <i class="fas fa-user"></i> First Name *
+                                </label>
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}
+                                    <div class="text-danger mt-1">{{ form.first_name.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.last_name.id_for_label }}">
+                                    <i class="fas fa-user"></i> Last Name *
+                                </label>
+                                {{ form.last_name }}
+                                {% if form.last_name.errors %}
+                                    <div class="text-danger mt-1">{{ form.last_name.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.username.id_for_label }}">
+                            <i class="fas fa-at"></i> Username *
+                        </label>
+                        {{ form.username }}
+                        <small class="form-text">Only letters, numbers, and underscores allowed.</small>
+                        <div id="username-feedback" class="mt-1"></div>
+                        {% if form.username.errors %}
+                            <div class="text-danger mt-1">{{ form.username.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.email.id_for_label }}">
+                            <i class="fas fa-envelope"></i> Email Address *
+                        </label>
+                        {{ form.email }}
+                        <div id="email-feedback" class="mt-1"></div>
+                        {% if form.email.errors %}
+                            <div class="text-danger mt-1">{{ form.email.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.phone_number.id_for_label }}">
+                                    <i class="fas fa-phone"></i> Phone Number *
+                                </label>
+                                {{ form.phone_number }}
+                                {% if form.phone_number.errors %}
+                                    <div class="text-danger mt-1">{{ form.phone_number.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.role.id_for_label }}">
+                                    <i class="fas fa-briefcase"></i> Role *
+                                </label>
+                                {{ form.role }}
+                                {% if form.role.errors %}
+                                    <div class="text-danger mt-1">{{ form.role.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.license_number.id_for_label }}">
+                            <i class="fas fa-id-card"></i> License Number (Optional)
+                        </label>
+                        {{ form.license_number }}
+                        {% if form.license_number.errors %}
+                            <div class="text-danger mt-1">{{ form.license_number.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.password1.id_for_label }}">
+                                    <i class="fas fa-lock"></i> Password *
+                                </label>
+                                {{ form.password1 }}
+                                <div class="password-strength" id="password-strength"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.password2.id_for_label }}">
+                                    <i class="fas fa-lock"></i> Confirm Password *
+                                </label>
+                                {{ form.password2 }}
+                                <div id="password-match" class="mt-1"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <ul class="password-requirements" id="password-requirements">
+                                <li id="length-check"><i class="fas fa-times-circle requirement-not-met"></i> At least 8 characters</li>
+                                <li id="uppercase-check"><i class="fas fa-times-circle requirement-not-met"></i> At least 1 uppercase letter</li>
+                                <li id="lowercase-check"><i class="fas fa-times-circle requirement-not-met"></i> At least 1 lowercase letter</li>
+                                <li id="number-check"><i class="fas fa-times-circle requirement-not-met"></i> At least 1 number</li>
+                                <li id="special-check"><i class="fas fa-times-circle requirement-not-met"></i> At least 1 special character</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-check">
+                            {{ form.accept_terms }}
+                            <label class="form-check-label" for="{{ form.accept_terms.id_for_label }}">
+                                I accept the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">terms and conditions</a> *
+                            </label>
+                        </div>
+                        {% if form.accept_terms.errors %}
+                            <div class="text-danger mt-1">{{ form.accept_terms.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <button type="submit" class="btn btn-register" id="submitBtn" disabled>
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <p class="mb-0">Already have an account? <a href="{% url 'accounts:login' %}">Login here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Terms and Conditions Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Terms and Conditions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>By creating an account, you agree to:</p>
+                <ul>
+                    <li>Use the system only for legitimate pharmacy operations</li>
+                    <li>Maintain confidentiality of patient information</li>
+                    <li>Comply with all applicable laws and regulations</li>
+                    <li>Report any security issues immediately</li>
+                    <li>Not share your login credentials with others</li>
+                </ul>
+                <p>Your activities may be logged for security and audit purposes.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Username availability check
+document.getElementById('{{ form.username.id_for_label }}').addEventListener('blur', function() {
+    const username = this.value;
+    const feedback = document.getElementById('username-feedback');
+    
+    if (username.length >= 3) {
+        fetch(`{% url 'accounts:api_check_username' %}?username=${username}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.available) {
+                    feedback.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> Username available</span>';
+                } else {
+                    feedback.innerHTML = '<span class="text-danger"><i class="fas fa-times"></i> Username taken</span>';
+                }
+            });
+    }
+});
+
+// Email availability check
+document.getElementById('{{ form.email.id_for_label }}').addEventListener('blur', function() {
+    const email = this.value;
+    const feedback = document.getElementById('email-feedback');
+    
+    if (email.includes('@') && email.includes('.')) {
+        fetch(`{% url 'accounts:api_check_email' %}?email=${email}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.available) {
+                    feedback.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> Email available</span>';
+                } else {
+                    feedback.innerHTML = '<span class="text-danger"><i class="fas fa-times"></i> Email already registered</span>';
+                }
+            });
+    }
+});
+
+// Password strength checker
+const passwordInput = document.getElementById('{{ form.password1.id_for_label }}');
+const strengthBar = document.getElementById('password-strength');
+const lengthCheck = document.getElementById('length-check');
+const uppercaseCheck = document.getElementById('uppercase-check');
+const lowercaseCheck = document.getElementById('lowercase-check');
+const numberCheck = document.getElementById('number-check');
+const specialCheck = document.getElementById('special-check');
+const submitBtn = document.getElementById('submitBtn');
+
+passwordInput.addEventListener('input', function() {
+    const password = this.value;
+    let strength = 0;
+    
+    // Length check
+    if (password.length >= 8) {
+        lengthCheck.innerHTML = '<i class="fas fa-check-circle requirement-met"></i> At least 8 characters';
+        strength++;
+    } else {
+        lengthCheck.innerHTML = '<i class="fas fa-times-circle requirement-not-met"></i> At least 8 characters';
+    }
+    
+    // Uppercase check
+    if (/[A-Z]/.test(password)) {
+        uppercaseCheck.innerHTML = '<i class="fas fa-check-circle requirement-met"></i> At least 1 uppercase letter';
+        strength++;
+    } else {
+        uppercaseCheck.innerHTML = '<i class="fas fa-times-circle requirement-not-met"></i> At least 1 uppercase letter';
+    }
+    
+    // Lowercase check
+    if (/[a-z]/.test(password)) {
+        lowercaseCheck.innerHTML = '<i class="fas fa-check-circle requirement-met"></i> At least 1 lowercase letter';
+        strength++;
+    } else {
+        lowercaseCheck.innerHTML = '<i class="fas fa-times-circle requirement-not-met"></i> At least 1 lowercase letter';
+    }
+    
+    // Number check
+    if (/[0-9]/.test(password)) {
+        numberCheck.innerHTML = '<i class="fas fa-check-circle requirement-met"></i> At least 1 number';
+        strength++;
+    } else {
+        numberCheck.innerHTML = '<i class="fas fa-times-circle requirement-not-met"></i> At least 1 number';
+    }
+    
+    // Special character check
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+        specialCheck.innerHTML = '<i class="fas fa-check-circle requirement-met"></i> At least 1 special character';
+        strength++;
+    } else {
+        specialCheck.innerHTML = '<i class="fas fa-times-circle requirement-not-met"></i> At least 1 special character';
+    }
+    
+    // Update strength bar
+    strengthBar.className = 'password-strength';
+    if (strength <= 2) {
+        strengthBar.classList.add('strength-weak');
+    } else if (strength == 3) {
+        strengthBar.classList.add('strength-medium');
+    } else if (strength == 4) {
+        strengthBar.classList.add('strength-strong');
+    } else if (strength == 5) {
+        strengthBar.classList.add('strength-very-strong');
+    }
+    
+    // Enable submit if all requirements met
+    submitBtn.disabled = strength < 5;
+});
+
+// Password match checker
+const confirmPassword = document.getElementById('{{ form.password2.id_for_label }}');
+const matchIndicator = document.getElementById('password-match');
+
+confirmPassword.addEventListener('input', function() {
+    if (this.value === passwordInput.value) {
+        matchIndicator.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> Passwords match</span>';
+    } else {
+        matchIndicator.innerHTML = '<span class="text-danger"><i class="fas fa-times"></i> Passwords do not match</span>';
+    }
+});
+</script>
+{% endblock %}

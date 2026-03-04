@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}User Management - Pharmacy Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+    }
+    .filter-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .user-table {
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .user-table thead {
+        background: #667eea;
+        color: white;
+    }
+    .user-table th {
+        font-weight: 500;
+        padding: 15px;
+    }
+    .user-table td {
+        padding: 12px 15px;
+        vertical-align: middle;
+    }
+    .role-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .role-admin { background: #dc3545; color: white; }
+    .role-pharmacist { background: #28a745; color: white; }
+    .role-technician { background: #17a2b8; color: white; }
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+    }
+    .status-active { background: #d4edda; color: #155724; }
+    .status-inactive { background: #f8d7da; color: #721c24; }
+    .action-btn {
+        padding: 5px 10px;
+        margin: 0 2px;
+        border-radius: 5px;
+    }
+    .pagination {
+        margin-top: 20px;
+        justify-content: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="page-header d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-1"><i class="fas fa-users"></i> User Management</h4>
+            <p class="mb-0">Manage system users and their permissions</p>
+        </div>
+        <a href="{% url 'accounts:user_create' %}" class="btn btn-light">
+            <i class="fas fa-user-plus"></i> Add New User
+        </a>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="filter-card">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Search</label>
+                <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Username, name, or email...">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Role</label>
+                <select class="form-select" name="role">
+                    <option value="">All Roles</option>
+                    {% for value, label in role_choices %}
+                        <option value="{{ value }}" {% if role_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select class="form-select" name="status">
+                    <option value="">All Status</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Apply
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- User Table -->
+    <div class="user-table">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Contact</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Last Login</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-circle me-3" style="width: 40px; height: 40px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
+                                {{ user.first_name|first|default:user.username|first|upper }}
+                            </div>
+                            <div>
+                                <strong>{{ user.get_full_name|default:user.username }}</strong><br>
+                                <small class="text-muted">@{{ user.username }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {{ user.email }}<br>
+                        <small class="text-muted">{{ user.profile.phone_number|default:"No phone" }}</small>
+                    </td>
+                    <td>
+                        <span class="role-badge role-{{ user.profile.role }}">
+                            {{ user.profile.get_role_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-badge status-{% if user.is_active %}active{% else %}inactive{% endif %}">
+                            {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if user.last_login %}
+                            {{ user.last_login|date:"M d, Y" }}<br>
+                            <small class="text-muted">{{ user.last_login|timesince }} ago</small>
+                        {% else %}
+                            <span class="text-muted">Never</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <a href="{% url 'accounts:user_edit' user.id %}" class="btn btn-sm btn-outline-primary action-btn" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'accounts:user_activity' user.id %}" class="btn btn-sm btn-outline-info action-btn" title="View Activity">
+                                <i class="fas fa-history"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-{% if user.is_active %}warning{% else %}success{% endif %} action-btn" 
+                                    onclick="toggleUserStatus({{ user.id }}, '{{ user.username }}')"
+                                    title="{% if user.is_active %}Deactivate{% else %}Activate{% endif %}">
+                                <i class="fas fa-{% if user.is_active %}ban{% else %}check{% endif %}"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger action-btn" 
+                                    onclick="confirmDelete({{ user.id }}, '{{ user.username }}')"
+                                    title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-5">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h5>No Users Found</h5>
+                        <p class="text-muted">Try adjusting your search or filter criteria</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if users.has_other_pages %}
+    <nav>
+        <ul class="pagination">
+            {% if users.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ users.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                        Previous
+                    </a>
+                </li>
+            {% endif %}
+
+            {% for i in users.paginator.page_range %}
+                {% if users.number == i %}
+                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                            {{ i }}
+                        </a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if users.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ users.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                        Next
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete user <strong id="deleteUsername"></strong>?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" id="deleteForm" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete User</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toggle Status Modal -->
+<div class="modal fade" id="toggleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="toggleModalTitle">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="toggleModalBody">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" id="toggleForm">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning" id="toggleModalBtn">Confirm</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(userId, username) {
+    document.getElementById('deleteUsername').textContent = username;
+    document.getElementById('deleteForm').action = `{% url 'accounts:user_delete' 0 %}`.replace('0', userId);
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function toggleUserStatus(userId, username) {
+    const modal = new bootstrap.Modal(document.getElementById('toggleModal'));
+    const modalTitle = document.getElementById('toggleModalTitle');
+    const modalBody = document.getElementById('toggleModalBody');
+    const modalBtn = document.getElementById('toggleModalBtn');
+    const toggleForm = document.getElementById('toggleForm');
+    
+    toggleForm.action = `{% url 'accounts:user_toggle' 0 %}`.replace('0', userId);
+    
+    {% if user.is_active %}
+        modalTitle.textContent = 'Deactivate User';
+        modalBody.innerHTML = `<p>Are you sure you want to deactivate <strong>${username}</strong>?</p><p>The user will not be able to log in until reactivated.</p>`;
+        modalBtn.className = 'btn btn-warning';
+        modalBtn.textContent = 'Deactivate';
+    {% else %}
+        modalTitle.textContent = 'Activate User';
+        modalBody.innerHTML = `<p>Are you sure you want to activate <strong>${username}</strong>?</p><p>The user will be able to log in again.</p>`;
+        modalBtn.className = 'btn btn-success';
+        modalBtn.textContent = 'Activate';
+    {% endif %}
+    
+    modal.show();
+}
+</script>
+{% endblock %}

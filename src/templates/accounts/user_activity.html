@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ view_user.username }} Activity - Pharmacy Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .activity-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+    }
+    .user-summary {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    .user-avatar {
+        width: 80px;
+        height: 80px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        color: white;
+        border: 3px solid rgba(255,255,255,0.3);
+    }
+    .stats-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .stats-card h6 {
+        color: #6c757d;
+        margin-bottom: 10px;
+    }
+    .stats-number {
+        font-size: 32px;
+        font-weight: 600;
+        color: #667eea;
+    }
+    .activity-timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    .activity-timeline::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e9ecef;
+    }
+    .activity-item {
+        position: relative;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .activity-item::before {
+        content: '';
+        position: absolute;
+        left: -24px;
+        top: 20px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #667eea;
+        border: 2px solid white;
+    }
+    .activity-item.prescription::before { background: #28a745; }
+    .activity-item.sale::before { background: #17a2b8; }
+    .activity-time {
+        font-size: 12px;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+    .activity-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+    }
+    .badge-status {
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Activity Header -->
+    <div class="activity-header">
+        <div class="user-summary">
+            <div class="user-avatar">
+                {{ view_user.first_name|first|default:view_user.username|first|upper }}
+            </div>
+            <div>
+                <h3 class="mb-1">{{ view_user.get_full_name|default:view_user.username }}</h3>
+                <p class="mb-2">@{{ view_user.username }} · {{ view_user.profile.get_role_display }}</p>
+                <div>
+                    <span class="badge bg-light text-dark me-2">
+                        <i class="fas fa-envelope"></i> {{ view_user.email }}
+                    </span>
+                    <span class="badge bg-light text-dark">
+                        <i class="fas fa-phone"></i> {{ view_user.profile.phone_number|default:"No phone" }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <h6><i class="fas fa-prescription"></i> Prescriptions</h6>
+                <div class="stats-number">{{ prescription_count }}</div>
+                <small class="text-muted">Total processed</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <h6><i class="fas fa-cash-register"></i> Sales</h6>
+                <div class="stats-number">{{ sales_count }}</div>
+                <small class="text-muted">Total transactions</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <h6><i class="fas fa-calendar"></i> Member Since</h6>
+                <div class="stats-number">{{ view_user.date_joined|date:"M Y" }}</div>
+                <small class="text-muted">{{ view_user.date_joined|timesince }} ago</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <h6><i class="fas fa-clock"></i> Last Active</h6>
+                <div class="stats-number">
+                    {% if view_user.last_login %}
+                        {{ view_user.last_login|timesince }}
+                    {% else %}
+                        Never
+                    {% endif %}
+                </div>
+                <small class="text-muted">ago</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Timeline -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Activity Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <div class="activity-timeline">
+                        {% for item in activity %}
+                            <div class="activity-item {{ item.type }}">
+                                <div class="activity-time">
+                                    <i class="far fa-clock"></i> {{ item.time|date:"M d, Y H:i" }}
+                                    ({{ item.time|timesince }} ago)
+                                </div>
+                                <div>
+                                    <span class="activity-icon bg-{% if item.type == 'prescription' %}success{% else %}info{% endif %} bg-opacity-10">
+                                        <i class="fas fa-{% if item.type == 'prescription' %}prescription-bottle{% else %}cash-register{% endif %} text-{% if item.type == 'prescription' %}success{% else %}info{% endif %}"></i>
+                                    </span>
+                                    {{ item.description }}
+                                    {% if item.type == 'prescription' %}
+                                        <span class="badge-status bg-{% if item.status == 'dispensed' %}success{% elif item.status == 'pending' %}warning{% else %}secondary{% endif %} bg-opacity-10">
+                                            {{ item.status }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge-status bg-info bg-opacity-10">
+                                            {{ item.payment_method }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% empty %}
+                            <p class="text-center text-muted py-4">No activity found for this user.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{% url 'accounts:user_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to User List
+        </a>
+    </div>
+</div>
+{% endblock %}

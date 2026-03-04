@@ -22,5 +22,31 @@ class UserProfile(models.Model):
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
+    """Create UserProfile automatically when a new User is created"""
     if created:
         UserProfile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    """Save UserProfile when User is saved"""
+    # Use try/except to handle cases where profile might not exist yet
+    try:
+        instance.profile.save()
+    except UserProfile.DoesNotExist:
+        # Create profile if it doesn't exist (for existing users)
+        UserProfile.objects.create(user=instance)
+
+
+class PasswordResetToken(models.Model):
+    """Simple model for password reset tokens"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reset_tokens')
+    token = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+    
+    def is_valid(self):
+        return not self.used and self.expires_at > timezone.now()
+    
+    def __str__(self):
+        return f"Reset token for {self.user.username}"

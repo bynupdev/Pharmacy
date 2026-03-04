@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Profile - Pharmacy Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+    }
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        color: #667eea;
+        margin: 0 auto 15px;
+        border: 3px solid rgba(255,255,255,0.3);
+    }
+    .info-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    .info-card h5 {
+        color: #667eea;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    .info-label {
+        font-weight: 600;
+        color: #555;
+        margin-bottom: 5px;
+    }
+    .info-value {
+        color: #333;
+        margin-bottom: 15px;
+        padding: 8px;
+        background: #f8f9fa;
+        border-radius: 5px;
+    }
+    .activity-item {
+        padding: 15px;
+        border-left: 3px solid #667eea;
+        background: #f8f9fa;
+        margin-bottom: 10px;
+        border-radius: 0 5px 5px 0;
+    }
+    .activity-time {
+        font-size: 12px;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+    .activity-action {
+        color: #333;
+        font-weight: 500;
+    }
+    .btn-edit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        transition: all 0.3s;
+    }
+    .btn-edit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    .btn-change-password {
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+        border-radius: 8px;
+        padding: 10px 20px;
+        transition: all 0.3s;
+    }
+    .btn-change-password:hover {
+        background: #667eea;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Profile Header -->
+    <div class="profile-header text-center">
+        <div class="profile-avatar">
+            <i class="fas fa-user-md"></i>
+        </div>
+        <h3>{{ user.get_full_name|default:user.username }}</h3>
+        <p class="mb-0">
+            <span class="badge bg-light text-dark">
+                <i class="fas fa-briefcase"></i> {{ user.profile.get_role_display }}
+            </span>
+            <span class="badge bg-light text-dark ms-2">
+                <i class="fas fa-calendar"></i> Member since {{ user.date_joined|date:"M Y" }}
+            </span>
+        </p>
+    </div>
+
+    <div class="row">
+        <!-- Personal Information -->
+        <div class="col-md-4">
+            <div class="info-card">
+                <h5><i class="fas fa-user-circle"></i> Personal Information</h5>
+                
+                <div class="info-label">Username</div>
+                <div class="info-value">{{ user.username }}</div>
+                
+                <div class="info-label">Full Name</div>
+                <div class="info-value">{{ user.get_full_name|default:"Not provided" }}</div>
+                
+                <div class="info-label">Email</div>
+                <div class="info-value">{{ user.email }}</div>
+                
+                <div class="info-label">Phone Number</div>
+                <div class="info-value">{{ user.profile.phone_number|default:"Not provided" }}</div>
+                
+                <div class="info-label">License Number</div>
+                <div class="info-value">{{ user.profile.license_number|default:"Not required" }}</div>
+                
+                <hr>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-edit" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                        <i class="fas fa-edit"></i> Edit Profile
+                    </button>
+                    <a href="{% url 'accounts:change_password' %}" class="btn btn-change-password">
+                        <i class="fas fa-key"></i> Change Password
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="col-md-8">
+            <div class="info-card">
+                <h5><i class="fas fa-history"></i> Recent Activity</h5>
+                
+                {% if recent_activity %}
+                    {% for activity in recent_activity %}
+                        <div class="activity-item">
+                            <div class="activity-time">
+                                <i class="far fa-clock"></i> {{ activity.time|timesince }} ago
+                            </div>
+                            <div class="activity-action">
+                                {{ activity.action }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-4">No recent activity found.</p>
+                {% endif %}
+            </div>
+
+            <!-- Statistics -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="info-card">
+                        <h5><i class="fas fa-chart-bar"></i> Prescriptions</h5>
+                        <p class="display-4">{{ prescription_count|default:"0" }}</p>
+                        <p class="text-muted">Processed prescriptions</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="info-card">
+                        <h5><i class="fas fa-chart-line"></i> Sales</h5>
+                        <p class="display-4">{{ sales_count|default:"0" }}</p>
+                        <p class="text-muted">Completed transactions</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" id="profileForm">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ user_form.first_name.id_for_label }}">First Name</label>
+                            {{ user_form.first_name }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ user_form.last_name.id_for_label }}">Last Name</label>
+                            {{ user_form.last_name }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ user_form.email.id_for_label }}">Email</label>
+                        {{ user_form.email }}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ profile_form.phone_number.id_for_label }}">Phone Number</label>
+                            {{ profile_form.phone_number }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ profile_form.license_number.id_for_label }}">License Number</label>
+                            {{ profile_form.license_number }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ profile_form.role.id_for_label }}">Role</label>
+                        {{ profile_form.role }}
+                        <small class="text-muted">Role changes may require admin approval</small>
+                    </div>
+
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

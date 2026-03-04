@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if edit_mode %}Edit{% else %}Create{% endif %} User - Pharmacy Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 30px auto;
+    }
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 25px;
+    }
+    .card-header h4 {
+        margin: 0;
+    }
+    .card-body {
+        padding: 30px;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        padding: 10px 12px;
+        border: 1px solid #e0e0e0;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    .btn-save {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    .btn-cancel {
+        background: white;
+        color: #6c757d;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px 30px;
+        font-weight: 600;
+        margin-right: 10px;
+    }
+    .btn-cancel:hover {
+        background: #f8f9fa;
+    }
+    .password-requirements {
+        font-size: 12px;
+        list-style: none;
+        padding-left: 0;
+        margin-top: 10px;
+    }
+    .requirement-met {
+        color: #28a745;
+    }
+    .requirement-not-met {
+        color: #dc3545;
+    }
+    .avatar-preview {
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        color: white;
+        margin: 0 auto 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-{% if edit_mode %}edit{% else %}user-plus{% endif %}"></i> 
+                    {% if edit_mode %}Edit User: {{ edit_user.username }}{% else %}Create New User{% endif %}
+                </h4>
+                <p class="mb-0">{% if edit_mode %}Update user information and permissions{% else %}Add a new user to the system{% endif %}</p>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% if edit_mode %}
+                <div class="text-center mb-4">
+                    <div class="avatar-preview">
+                        {{ edit_user.first_name|first|default:edit_user.username|first|upper }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <form method="post" id="userForm" novalidate>
+                    {% csrf_token %}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ user_form.first_name.id_for_label }}">
+                                    <i class="fas fa-user"></i> First Name
+                                </label>
+                                {{ user_form.first_name }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ user_form.last_name.id_for_label }}">
+                                    <i class="fas fa-user"></i> Last Name
+                                </label>
+                                {{ user_form.last_name }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ user_form.username.id_for_label }}">
+                            <i class="fas fa-at"></i> Username
+                        </label>
+                        {{ user_form.username }}
+                        {% if not edit_mode %}
+                            <div id="username-feedback" class="mt-1"></div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ user_form.email.id_for_label }}">
+                            <i class="fas fa-envelope"></i> Email
+                        </label>
+                        {{ user_form.email }}
+                        {% if not edit_mode %}
+                            <div id="email-feedback" class="mt-1"></div>
+                        {% endif %}
+                    </div>
+
+                    {% if not edit_mode %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ user_form.password1.id_for_label }}">
+                                    <i class="fas fa-lock"></i> Password
+                                </label>
+                                {{ user_form.password1 }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ user_form.password2.id_for_label }}">
+                                    <i class="fas fa-lock"></i> Confirm Password
+                                </label>
+                                {{ user_form.password2 }}
+                                <div id="password-match" class="mt-1"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="password-requirements" id="password-requirements">
+                        <p><strong>Password Requirements:</strong></p>
+                        <ul>
+                            <li id="length-check"><i class="fas fa-times-circle requirement-not-met"></i> At least 8 characters</li>
+                            <li id="uppercase-check"><i class="fas fa-times-circle requirement-not-met"></i> At least 1 uppercase letter</li>
+                            <li id="lowercase-check"><i class="fas fa-times-circle requirement-not-met"></i> At least 1 lowercase letter</li>
+                            <li id="number-check"><i class="fas fa-times-circle requirement-not-met"></i> At least 1 number</li>
+                            <li id="special-check"><i class="fas fa-times-circle requirement-not-met"></i> At least 1 special character</li>
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ profile_form.phone_number.id_for_label }}">
+                                    <i class="fas fa-phone"></i> Phone Number
+                                </label>
+                                {{ profile_form.phone_number }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ profile_form.license_number.id_for_label }}">
+                                    <i class="fas fa-id-card"></i> License Number
+                                </label>
+                                {{ profile_form.license_number }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ profile_form.role.id_for_label }}">
+                            <i class="fas fa-briefcase"></i> Role
+                        </label>
+                        {{ profile_form.role }}
+                    </div>
+
+                    {% if edit_mode %}
+                    <div class="form-group">
+                        <div class="form-check">
+                            {{ user_form.is_active }}
+                            <label class="form-check-label" for="{{ user_form.is_active.id_for_label }}">
+                                Account Active
+                            </label>
+                        </div>
+                        <small class="text-muted">Inactive users cannot log in to the system</small>
+                    </div>
+                    {% endif %}
+
+                    <hr>
+
+                    <div class="text-end">
+                        <a href="{% url 'accounts:user_list' %}" class="btn btn-cancel">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-save" id="submitBtn" {% if not edit_mode %}disabled{% endif %}>
+                            <i class="fas fa-save"></i> {% if edit_mode %}Update User{% else %}Create User{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if not edit_mode %}
+<script>
+// Username availability check
+document.getElementById('{{ user_form.username.id_for_label }}').addEventListener('blur', function() {
+    const username = this.value;
+    const feedback = document.getElementById('username-feedback');
+    
+    if (username.length >= 3) {
+        fetch(`{% url 'accounts:api_check_username' %}?username=${username}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.available) {
+                    feedback.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> Username available</span>';
+                } else {
+                    feedback.innerHTML = '<span class="text-danger"><i class="fas fa-times"></i> Username taken</span>';
+                }
+            });
+    }
+});
+
+// Email availability check
+document.getElementById('{{ user_form.email.id_for_label }}').addEventListener('blur', function() {
+    const email = this.value;
+    const feedback = document.getElementById('email-feedback');
+    
+    if (email.includes('@') && email.includes('.')) {
+        fetch(`{% url 'accounts:api_check_email' %}?email=${email}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.available) {
+                    feedback.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> Email available</span>';
+                } else {
+                    feedback.innerHTML = '<span class="text-danger"><i class="fas fa-times"></i> Email already registered</span>';
+                }
+            });
+    }
+});
+
+// Password strength checker
+const passwordInput = document.getElementById('{{ user_form.password1.id_for_label }}');
+const confirmPassword = document.getElementById('{{ user_form.password2.id_for_label }}');
+const submitBtn = document.getElementById('submitBtn');
+
+const lengthCheck = document.getElementById('length-check');
+const uppercaseCheck = document.getElementById('uppercase-check');
+const lowercaseCheck = document.getElementById('lowercase-check');
+const numberCheck = document.getElementById('number-check');
+const specialCheck = document.getElementById('special-check');
+
+passwordInput.addEventListener('input', function() {
+    const password = this.value;
+    let strength = 0;
+    
+    // Length check
+    if (password.length >= 8) {
+        lengthCheck.innerHTML = '<i class="fas fa-check-circle requirement-met"></i> At least 8 characters';
+        strength++;
+    } else {
+        lengthCheck.innerHTML = '<i class="fas fa-times-circle requirement-not-met"></i> At least 8 characters';
+    }
+    
+    // Uppercase check
+    if (/[A-Z]/.test(password)) {
+        uppercaseCheck.innerHTML = '<i class="fas fa-check-circle requirement-met"></i> At least 1 uppercase letter';
+        strength++;
+    } else {
+        uppercaseCheck.innerHTML = '<i class="fas fa-times-circle requirement-not-met"></i> At least 1 uppercase letter';
+    }
+    
+    // Lowercase check
+    if (/[a-z]/.test(password)) {
+        lowercaseCheck.innerHTML = '<i class="fas fa-check-circle requirement-met"></i> At least 1 lowercase letter';
+        strength++;
+    } else {
+        lowercaseCheck.innerHTML = '<i class="fas fa-times-circle requirement-not-met"></i> At least 1 lowercase letter';
+    }
+    
+    // Number check
+    if (/[0-9]/.test(password)) {
+        numberCheck.innerHTML = '<i class="fas fa-check-circle requirement-met"></i> At least 1 number';
+        strength++;
+    } else {
+        numberCheck.innerHTML = '<i class="fas fa-times-circle requirement-not-met"></i> At least 1 number';
+    }
+    
+    // Special character check
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+        specialCheck.innerHTML = '<i class="fas fa-check-circle requirement-met"></i> At least 1 special character';
+        strength++;
+    } else {
+        specialCheck.innerHTML = '<i class="fas fa-times-circle requirement-not-met"></i> At least 1 special character';
+    }
+    
+    // Enable submit if all requirements met
+    if (strength === 5 && passwordInput.value === confirmPassword.value) {
+        submitBtn.disabled = false;
+    } else {
+        submitBtn.disabled = true;
+    }
+});
+
+// Password match checker
+const matchIndicator = document.getElementById('password-match');
+
+confirmPassword.addEventListener('input', function() {
+    if (this.value === passwordInput.value) {
+        matchIndicator.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> Passwords match</span>';
+        if (passwordInput.value.length >= 8) {
+            submitBtn.disabled = false;
+        }
+    } else {
+        matchIndicator.innerHTML = '<span class="text-danger"><i class="fas fa-times"></i> Passwords do not match</span>';
+        submitBtn.disabled = true;
+    }
+});
+</script>
+{% endif %}
+{% endblock %}
