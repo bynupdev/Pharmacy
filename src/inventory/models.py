@@ -3,6 +3,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 class Supplier(models.Model):
+    pharmacy = models.ForeignKey('accounts.Pharmacy', on_delete=models.CASCADE, null=True)
     name = models.CharField(max_length=200)
     contact_person = models.CharField(max_length=100)
     email = models.EmailField()
@@ -24,6 +25,7 @@ class Drug(models.Model):
         ('inhaler', 'Inhaler'),
     )
     
+    pharmacy = models.ForeignKey('accounts.Pharmacy', on_delete=models.CASCADE, null=True)
     name = models.CharField(max_length=200)
     generic_name = models.CharField(max_length=200)
     rxcui = models.CharField(max_length=20, unique=True, null=True, blank=True)
@@ -45,6 +47,7 @@ class Drug(models.Model):
         return f"{self.name} {self.strength}"
 
 class Batch(models.Model):
+    pharmacy = models.ForeignKey('accounts.Pharmacy', on_delete=models.CASCADE, null=True)
     drug = models.ForeignKey(Drug, on_delete=models.CASCADE, related_name='batches')
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True)
     batch_number = models.CharField(max_length=100, unique=True)

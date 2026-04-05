@@ -149,8 +149,11 @@ def create_from_prescription(request, prescription_id):
 @login_required
 def sale_history(request):
     """View sales history"""
-    sales = Sale.objects.select_related('pharmacist', 'prescription').all().order_by('-created_at')
-    
+    if not request.pharmacy:
+        messages.error(request, 'Pharmacy not found.')
+        return redirect('dashboard')
+    # sales = Sale.objects.select_related('pharmacist', 'prescription').all().order_by('-created_at')
+    sales = Sale.objects.filter(pharmacy=request.pharmacy)
     # Filter by date
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')

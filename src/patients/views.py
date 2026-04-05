@@ -11,7 +11,11 @@ from .forms import PatientForm, AllergyForm
 @login_required
 def patient_list(request):
     """List all patients"""
-    patients = Patient.objects.all().order_by('last_name', 'first_name')
+    if not request.pharmacy:
+        messages.error(request, 'Pharmacy not found.')
+        return redirect('dashboard')
+    # patients = Patient.objects.all().order_by('last_name', 'first_name')
+    patients = Patient.objects.filter(pharmacy=request.pharmacy).order_by('last_name', 'first_name')
     
     # Search
     search_query = request.GET.get('search', '')

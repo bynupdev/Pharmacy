@@ -10,7 +10,7 @@ class Sale(models.Model):
         ('insurance', 'Insurance'),
         ('mobile', 'Mobile Money'),
     )
-    
+    pharmacy = models.ForeignKey('accounts.Pharmacy', on_delete=models.CASCADE, null=True)
     invoice_number = models.CharField(max_length=50, unique=True)
     prescription = models.ForeignKey(Prescription, on_delete=models.SET_NULL, null=True, blank=True, related_name='sales')
     pharmacist = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)

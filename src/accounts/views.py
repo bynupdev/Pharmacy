@@ -26,45 +26,75 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.hashers import check_password
 
+# def login_view(request):
+#     """Fixed login view"""
+#     if request.user.is_authenticated:
+#         return redirect('dashboard')
+    
+#     if request.method == 'POST':
+#         form = LoginForm(request, data=request.POST)
+        
+#         if form.is_valid():
+#             username = form.cleaned_data.get('username')
+#             password = form.cleaned_data.get('password')
+            
+#             # Method 1: Use Django's authenticate
+#             user = authenticate(request, username=username, password=password)
+            
+#             if user is not None:
+#                 if user.is_active:
+#                     login(request, user)
+#                     messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
+                    
+#                     next_url = request.GET.get('next')
+#                     if next_url:
+#                         return redirect(next_url)
+#                     return redirect('dashboard')
+#                 else:
+#                     messages.error(request, 'This account is disabled. Contact administrator.')
+#             else:
+#                 # Method 2: Manual check for debugging
+#                 try:
+#                     user_obj = User.objects.get(username=username)
+#                     password_check = check_password(password, user_obj.password)
+#                     if password_check:
+#                         messages.error(request, f"Password is correct but authenticate failed. Is user active? {user_obj.is_active}")
+#                     else:
+#                         messages.error(request, "Password is incorrect")
+#                 except User.DoesNotExist:
+#                     messages.error(request, f"User '{username}' does not exist")
+#         else:
+#             messages.error(request, 'Invalid form data. Please check your input.')
+    
+#     form = LoginForm()
+#     return render(request, 'accounts/login.html', {'form': form})
+
+
 def login_view(request):
-    """Fixed login view"""
     if request.user.is_authenticated:
         return redirect('dashboard')
     
     if request.method == 'POST':
         form = LoginForm(request, data=request.POST)
-        
         if form.is_valid():
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
-            
-            # Method 1: Use Django's authenticate
-            user = authenticate(request, username=username, password=password)
+            user = authenticate(username=username, password=password)
             
             if user is not None:
                 if user.is_active:
                     login(request, user)
-                    messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
                     
-                    next_url = request.GET.get('next')
-                    if next_url:
-                        return redirect(next_url)
+                    # Store pharmacy ID in session
+                    if hasattr(user, 'profile') and user.profile.pharmacy:
+                        request.session['pharmacy_id'] = user.profile.pharmacy.id
+                    
+                    messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
                     return redirect('dashboard')
                 else:
-                    messages.error(request, 'This account is disabled. Contact administrator.')
+                    messages.error(request, 'This account is disabled.')
             else:
-                # Method 2: Manual check for debugging
-                try:
-                    user_obj = User.objects.get(username=username)
-                    password_check = check_password(password, user_obj.password)
-                    if password_check:
-                        messages.error(request, f"Password is correct but authenticate failed. Is user active? {user_obj.is_active}")
-                    else:
-                        messages.error(request, "Password is incorrect")
-                except User.DoesNotExist:
-                    messages.error(request, f"User '{username}' does not exist")
-        else:
-            messages.error(request, 'Invalid form data. Please check your input.')
+                messages.error(request, 'Invalid username or password.')
     
     form = LoginForm()
     return render(request, 'accounts/login.html', {'form': form})
@@ -94,7 +124,7 @@ def register(request):
             profile.save()
             
             messages.success(request, 'Account created successfully! You can now log in.')
-            return redirect('login')
+            return redirect('accounts:login')
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
@@ -423,3 +453,227 @@ def api_check_email(request):
     email = request.GET.get('email', '')
     exists = User.objects.filter(email__iexact=email).exists()
     return JsonResponse({'available': not exists})
+
+
+@login_required
+def manage_users(request):
+    """Pharmacy admin can add users to their pharmacy"""
+    if request.user.profile.role != 'admin':
+        messages.error(request, 'Only pharmacy admins can manage users.')
+        return redirect('dashboard')
+    
+    if not request.pharmacy:
+        messages.error(request, 'No pharmacy associated with your account.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        role = request.POST.get('role')
+        
+        try:
+            user = User.objects.get(email=email)
+            # Add user to this pharmacy
+            user.profile.pharmacy = request.pharmacy
+            user.profile.role = role
+            user.profile.save()
+            messages.success(request, f'User {user.email} added to {request.pharmacy.name}')
+        except User.DoesNotExist:
+            messages.error(request, 'User not found. They need to register first.')
+        
+        return redirect('manage_users')
+    
+    users = User.objects.filter(profile__pharmacy=request.pharmacy)
+    return render(request, 'accounts/manage_users.html', {'users': users})
+
+
+
+from django.shortcuts import render
+from django.contrib.auth.models import User
+from django.db.models import Count
+from accounts.models import Pharmacy
+
+def landing_page(request):
+    """Beautiful landing page for the pharmacy management system"""
+    
+    # Get statistics
+    total_pharmacies = Pharmacy.objects.count()
+    total_users = User.objects.filter(is_active=True).count()
+    
+    # You can add more dynamic stats if needed
+    from inventory.models import Drug
+    total_drugs = Drug.objects.count()
+    
+    # Features data
+    features = [
+        {
+            'icon': 'fas fa-chart-line',
+            'title': 'Real-time Analytics',
+            'description': 'Track sales, inventory, and prescriptions with powerful dashboards and instant insights.',
+            'color': '#667eea'
+        },
+        {
+            'icon': 'fas fa-shield-alt',
+            'title': 'Secure & Compliant',
+            'description': 'HIPAA compliant, end-to-end encryption, and secure role-based access control.',
+            'color': '#f59e0b'
+        },
+        {
+            'icon': 'fas fa-prescription-bottle',
+            'title': 'Smart Prescriptions',
+            'description': 'AI-powered drug interaction checking and digital prescription management.',
+            'color': '#10b981'
+        },
+        {
+            'icon': 'fas fa-boxes',
+            'title': 'Inventory Control',
+            'description': 'Real-time stock tracking, expiry alerts, and automated reordering system.',
+            'color': '#ef4444'
+        },
+        {
+            'icon': 'fas fa-mobile-alt',
+            'title': 'Mobile Ready',
+            'description': 'Fully responsive design - manage your pharmacy from anywhere, any device.',
+            'color': '#8b5cf6'
+        },
+        {
+            'icon': 'fas fa-headset',
+            'title': '24/7 Support',
+            'description': 'Dedicated support team available round the clock to help you.',
+            'color': '#06b6d4'
+        },
+        {
+            'icon': 'fas fa-chart-bar',
+            'title': 'Advanced Reporting',
+            'description': 'Generate detailed reports for sales, inventory, and business performance.',
+            'color': '#ec4899'
+        },
+        {
+            'icon': 'fas fa-users',
+            'title': 'Multi-User System',
+            'description': 'Role-based access for pharmacists, technicians, and cashiers.',
+            'color': '#14b8a6'
+        },
+        {
+            'icon': 'fas fa-cloud-upload-alt',
+            'title': 'Cloud Backup',
+            'description': 'Automatic backups and 99.9% uptime guarantee for your data.',
+            'color': '#6366f1'
+        },
+    ]
+    
+    # Pricing plans
+    pricing_plans = [
+        {
+            'name': 'Basic',
+            'price': '$49',
+            'period': 'month',
+            'description': 'Perfect for small pharmacies just starting out',
+            'features': [
+                'Up to 5 users',
+                '1,000 prescriptions/month',
+                'Basic inventory management',
+                'Email support',
+                '1GB storage',
+                'Standard reports'
+            ],
+            'button_text': 'Start Free Trial',
+            'popular': False,
+            'color': '#6b7280'
+        },
+        {
+            'name': 'Professional',
+            'price': '$99',
+            'period': 'month',
+            'description': 'Best for growing pharmacies with higher volume',
+            'features': [
+                'Up to 20 users',
+                '10,000 prescriptions/month',
+                'Advanced inventory management',
+                'Priority support',
+                '10GB storage',
+                'AI drug interaction checker',
+                'Custom reports',
+                'API access'
+            ],
+            'button_text': 'Start Free Trial',
+            'popular': True,
+            'color': '#667eea'
+        },
+        {
+            'name': 'Enterprise',
+            'price': '$199',
+            'period': 'month',
+            'description': 'For large pharmacy chains and high-volume operations',
+            'features': [
+                'Unlimited users',
+                'Unlimited prescriptions',
+                'Multi-location support',
+                '24/7 phone support',
+                '100GB storage',
+                'Custom integrations',
+                'Dedicated account manager',
+                'SLA guarantee'
+            ],
+            'button_text': 'Contact Sales',
+            'popular': False,
+            'color': '#8b5cf6'
+        },
+    ]
+    
+    # Testimonials
+    testimonials = [
+        {
+            'name': 'Dr. Sarah Johnson',
+            'role': 'Owner, City Pharmacy',
+            'text': 'This system transformed our pharmacy operations. The AI drug interaction checker alone has prevented countless potential issues. Our efficiency has increased by 40%!',
+            'rating': 5,
+            'image': 'https://ui-avatars.com/api/?background=667eea&color=fff&name=Sarah+Johnson'
+        },
+        {
+            'name': 'Michael Chen',
+            'role': 'Pharmacist, Wellness Plus',
+            'text': 'Incredible value for money. The inventory management and reporting features are exactly what we needed. Customer support is outstanding!',
+            'rating': 5,
+            'image': 'https://ui-avatars.com/api/?background=667eea&color=fff&name=Michael+Chen'
+        },
+        {
+            'name': 'Dr. Emily Rodriguez',
+            'role': 'Director, Family Health',
+            'text': 'The multi-user support and role-based access make it easy to manage my entire team. Weve reduced prescription errors by 60% since switching.',
+            'rating': 5,
+            'image': 'https://ui-avatars.com/api/?background=667eea&color=fff&name=Emily+Rodriguez'
+        },
+    ]
+    
+    # FAQs
+    faqs = [
+        {
+            'question': 'Is there a free trial?',
+            'answer': 'Yes! We offer a 14-day free trial on all plans. No credit card required.'
+        },
+        {
+            'question': 'Can I cancel anytime?',
+            'answer': 'Absolutely. You can cancel your subscription at any time with no hidden fees.'
+        },
+        {
+            'question': 'Is my data secure?',
+            'answer': 'Yes, we use bank-level encryption and follow HIPAA compliance standards.'
+        },
+        {
+            'question': 'Do you offer training?',
+            'answer': 'Yes, we provide free onboarding training and 24/7 support for all customers.'
+        },
+    ]
+    
+    context = {
+        'features': features,
+        'pricing_plans': pricing_plans,
+        'testimonials': testimonials,
+        'faqs': faqs,
+        'total_pharmacies': total_pharmacies,
+        'total_users': total_users,
+        'total_drugs': total_drugs,
+        'year': 2024,
+    }
+    
+    return render(request, 'landing/landing_page.html', context)

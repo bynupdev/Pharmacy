@@ -1,11 +1,11 @@
 :root {
-    --primary-color: #2c3e50;
-    --secondary-color: #3498db;
-    --success-color: #27ae60;
-    --danger-color: #e74c3c;
-    --warning-color: #f39c12;
-    --light-bg: #ecf0f1;
-    --dark-text: #34495e;
+    --primary-color: #0a6c75;
+    --secondary-color: #2c9a9e;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
+    --warning-color: #f59e0b;
+    --light-bg: #f7f9fc;
+    --dark-text: #1a3a3f;
     --sidebar-width: 250px;
 }
 
@@ -33,6 +33,10 @@ body {
 .sidebar-header {
     padding: 0 20px 20px;
     border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.sidebar-header a {
+    text-decoration: none;
 }
 
 .sidebar-header h3 {

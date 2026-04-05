@@ -11,7 +11,7 @@ class Prescription(models.Model):
         ('cancelled', 'Cancelled'),
         ('on_hold', 'On Hold'),
     )
-    
+    pharmacy = models.ForeignKey('accounts.Pharmacy', on_delete=models.CASCADE, null=True)
     prescription_number = models.CharField(max_length=50, unique=True)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='prescriptions')
     prescribed_by = models.CharField(max_length=200)  # Doctor's name

@@ -11,7 +11,12 @@ from .forms import DrugForm, BatchForm, SupplierForm
 @login_required
 def inventory_list(request):
     """List all drugs with current stock levels"""
-    drugs = Drug.objects.all().prefetch_related('batches')
+    # Add this check
+    if not request.pharmacy:
+        messages.error(request, 'Pharmacy not found.')
+        return redirect('dashboard')
+    # drugs = Drug.objects.all().prefetch_related('batches')
+    drugs = Drug.objects.filter(pharmacy=request.pharmacy)
     
     # Search functionality
     search_query = request.GET.get('search', '')

@@ -19,13 +19,13 @@
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <h3><i class="fas fa-pills"></i> PharmaSys</h3>
+            <a style="text-decoration: none; color: #2c9a9e;" href="{%url 'accounts:landing_page'%}"><h3><i class="fas fa-pills"></i> PharmHubAI</h3></a>
             <p class="text-light">Welcome, {{ user.get_full_name|default:user.username }}</p>
         </div>
         
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+                <a class="nav-link {% if request.path == '/dashboard' %}active{% endif %}" href="/dashboard/">
                     <i class="fas fa-tachometer-alt"></i> Dashboard
                 </a>
             </li>

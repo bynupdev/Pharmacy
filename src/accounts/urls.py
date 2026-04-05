@@ -4,6 +4,7 @@ from . import views
 app_name = 'accounts'
 
 urlpatterns = [
+    path('', views.landing_page, name='landing_page'),
     # Authentication
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
@@ -23,6 +24,7 @@ urlpatterns = [
     path('users/<int:pk>/edit/', views.user_edit, name='user_edit'),
     path('users/<int:pk>/toggle/', views.user_toggle_active, name='user_toggle'),
     path('users/<int:pk>/delete/', views.user_delete, name='user_delete'),
+    path('manage-users/', views.manage_users, name='manage_users'),
     
     # API endpoints
     path('api/check-username/', views.api_check_username, name='api_check_username'),

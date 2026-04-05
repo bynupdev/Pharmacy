@@ -3,6 +3,18 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+class Pharmacy(models.Model):
+    """Simple pharmacy/organization"""
+    name = models.CharField(max_length=200, unique=True)
+    address = models.TextField(blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return self.name
+    
+
 class UserProfile(models.Model):
     USER_ROLES = (
         ('admin', 'Administrator'),
@@ -14,6 +26,7 @@ class UserProfile(models.Model):
     role = models.CharField(max_length=20, choices=USER_ROLES, default='pharmacist')
     license_number = models.CharField(max_length=50, blank=True)
     phone_number = models.CharField(max_length=15)
+    pharmacy = models.ForeignKey(Pharmacy, on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

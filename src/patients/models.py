@@ -12,6 +12,7 @@ class Patient(models.Model):
     
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
+    pharmacy = models.ForeignKey('accounts.Pharmacy', on_delete=models.CASCADE, null=True)
     date_of_birth = models.DateField()
     gender = models.CharField(max_length=10, choices=(('M', 'Male'), ('F', 'Female'), ('O', 'Other')))
     phone = models.CharField(max_length=15)

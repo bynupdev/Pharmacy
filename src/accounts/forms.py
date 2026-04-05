@@ -36,6 +36,8 @@ class LoginForm(AuthenticationForm):
         return username
 
 class UserRegistrationForm(UserCreationForm):
+    pharmacy_name = forms.CharField(max_length=200, required=True, label='Pharmacy Name')
+
     username = forms.CharField(
         max_length=150,
         min_length=3,
@@ -171,13 +173,43 @@ class UserRegistrationForm(UserCreationForm):
     
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.email = self.cleaned_data['email'].lower()
-        user.username = self.cleaned_data['username'].lower()
         if commit:
             user.save()
+            # Create pharmacy
+            from .models import Pharmacy
+            pharmacy = Pharmacy.objects.create(
+                name=self.cleaned_data['pharmacy_name']
+            )
+            # DON'T create UserProfile here - the signal will do it
+            # Just update the profile that the signal created
+            profile = user.profile  # This gets the profile created by signal
+            profile.pharmacy = pharmacy
+            profile.role = 'admin'
+            profile.save()
         return user
+    
+    # def save(self, commit=True):
+    #     user = super().save(commit=False)
+    #     user.email = self.cleaned_data['email'].lower()
+    #     user.username = self.cleaned_data['username'].lower()
+    #     if commit:
+    #         user.save()
+    #         # Create pharmacy
+    #         from .models import Pharmacy
+    #         pharmacy = Pharmacy.objects.create(
+    #             name=self.cleaned_data['pharmacy_name']
+    #         )
+    #         # Create profile with pharmacy
+    #         UserProfile.objects.create(
+    #             user=user,
+    #             role='admin',
+    #             phone_number='',
+    #             pharmacy=pharmacy
+    #         )
+    #     return user
 
 class UserUpdateForm(forms.ModelForm):
+    
     email = forms.EmailField(
         widget=forms.EmailInput(attrs={
             'class': 'form-control',
