@@ -103,7 +103,7 @@ def logout_view(request):
     """Logout view"""
     logout(request)
     messages.success(request, 'You have been successfully logged out.')
-    return redirect('login')
+    return redirect('accounts:login')
 
 def register(request):
     """Simple registration without email verification"""
