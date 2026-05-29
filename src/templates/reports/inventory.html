@@ -32,7 +32,7 @@
             <div class="card text-white bg-success">
                 <div class="card-body">
                     <h6>Total Value</h6>
-                    <h3>${{ total_value|floatformat:2 }}</h3>
+                    <h3>XAF{{ total_value|floatformat:2 }}</h3>
                 </div>
             </div>
         </div>
@@ -40,7 +40,7 @@
             <div class="card text-white bg-info">
                 <div class="card-body">
                     <h6>Total Cost</h6>
-                    <h3>${{ total_cost|floatformat:2 }}</h3>
+                    <h3>XAF{{ total_cost|floatformat:2 }}</h3>
                 </div>
             </div>
         </div>
@@ -48,7 +48,7 @@
             <div class="card text-white bg-warning">
                 <div class="card-body">
                     <h6>Potential Profit</h6>
-                    <h3>${{ total_profit|floatformat:2 }}</h3>
+                    <h3>XAF{{ total_profit|floatformat:2 }}</h3>
                 </div>
             </div>
         </div>
@@ -101,10 +101,10 @@
                                     No stock
                                 {% endif %}
                             </td>
-                            <td>${{ item.total_value|floatformat:2 }}</td>
-                            <td>${{ item.total_cost|floatformat:2 }}</td>
+                            <td>XAF{{ item.total_value|floatformat:2 }}</td>
+                            <td>XAF{{ item.total_cost|floatformat:2 }}</td>
                             <td class="{% if item.potential_profit > 0 %}text-success{% else %}text-danger{% endif %}">
-                                ${{ item.potential_profit|floatformat:2 }}
+                                XAF{{ item.potential_profit|floatformat:2 }}
                             </td>
                         </tr>
                         {% endfor %}
@@ -112,9 +112,9 @@
                     <tfoot class="table-primary">
                         <tr>
                             <th colspan="5" class="text-end">TOTALS:</th>
-                            <th>${{ total_value|floatformat:2 }}</th>
-                            <th>${{ total_cost|floatformat:2 }}</th>
-                            <th>${{ total_profit|floatformat:2 }}</th>
+                            <th>XAF{{ total_value|floatformat:2 }}</th>
+                            <th>XAF{{ total_cost|floatformat:2 }}</th>
+                            <th>XAF{{ total_profit|floatformat:2 }}</th>
                         </tr>
                     </tfoot>
                 </table>

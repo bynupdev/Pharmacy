@@ -136,8 +136,8 @@
                                     <td><strong>{{ batch.batch_number }}</strong></td>
                                     <td>{{ batch.supplier.name|default:"N/A" }}</td>
                                     <td>{{ batch.quantity }}</td>
-                                    <td>${{ batch.purchase_price|floatformat:2 }}</td>
-                                    <td>${{ batch.selling_price|floatformat:2 }}</td>
+                                    <td>XAF{{ batch.purchase_price|floatformat:2 }}</td>
+                                    <td>XAF{{ batch.selling_price|floatformat:2 }}</td>
                                     <td>{{ batch.manufacture_date|date:"M d, Y" }}</td>
                                     <td>{{ batch.expiry_date|date:"M d, Y" }}</td>
                                     <td>

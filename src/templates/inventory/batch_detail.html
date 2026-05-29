@@ -60,11 +60,11 @@
                         </tr>
                         <tr>
                             <th>Purchase Price:</th>
-                            <td>${{ batch.purchase_price|floatformat:2 }}</td>
+                            <td>XAF{{ batch.purchase_price|floatformat:2 }}</td>
                         </tr>
                         <tr>
                             <th>Selling Price:</th>
-                            <td>${{ batch.selling_price|floatformat:2 }}</td>
+                            <td>XAF{{ batch.selling_price|floatformat:2 }}</td>
                         </tr>
                         <tr>
                             <th>Manufacture Date:</th>
@@ -96,16 +96,16 @@
                     <table class="table">
                         <tr>
                             <th>Total Investment:</th>
-                            <td>${{ batch.quantity|multiply:batch.purchase_price|floatformat:2 }}</td>
+                            <td>XAF{{ batch.quantity|multiply:batch.purchase_price|floatformat:2 }}</td>
                         </tr>
                         <tr>
                             <th>Expected Revenue:</th>
-                            <td>${{ batch.quantity|multiply:batch.selling_price|floatformat:2 }}</td>
+                            <td>XAF{{ batch.quantity|multiply:batch.selling_price|floatformat:2 }}</td>
                         </tr>
                         <tr>
                             <th>Expected Profit:</th>
                             <td class="{% if batch.quantity|multiply:batch.selling_price|add:batch.quantity|multiply:batch.purchase_price|floatformat:2 > 0 %}text-success{% else %}text-danger{% endif %}">
-                                ${{ batch.quantity|multiply:batch.selling_price|add:batch.quantity|multiply:batch.purchase_price|floatformat:2 }}
+                                XAF{{ batch.quantity|multiply:batch.selling_price|add:batch.quantity|multiply:batch.purchase_price|floatformat:2 }}
                             </td>
                         </tr>
                         <tr>

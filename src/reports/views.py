@@ -325,3 +325,145 @@ def export_report(request, report_type):
             ])
     
     return response
+
+
+import csv
+from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required
+from django.utils import timezone
+from datetime import datetime
+from inventory.models import Drug, Batch
+from sales.models import Sale
+from prescriptions.models import Prescription
+
+@login_required
+def export_report(request):
+    """Export reports as CSV"""
+    
+    # Get parameters from request
+    report_type = request.GET.get('type', 'inventory')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    format_type = request.GET.get('format', 'csv')
+    
+    # Create response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{report_type}_report_{datetime.now().strftime("%Y%m%d")}.csv"'
+    
+    writer = csv.writer(response)
+    
+    if report_type == 'inventory':
+        # Inventory Report
+        writer.writerow(['Drug Name', 'Generic Name', 'Form', 'Strength', 'Total Quantity', 'Batches', 'Total Value', 'Nearest Expiry'])
+        
+        drugs = Drug.objects.filter(pharmacy=request.pharmacy).prefetch_related('batches')
+        
+        for drug in drugs:
+            batches = drug.batches.all()
+            total_quantity = sum(batch.quantity for batch in batches)
+            total_value = sum(batch.quantity * float(batch.selling_price) for batch in batches)
+            valid_batches = [b for b in batches if b.quantity > 0]
+            nearest_expiry = min([b.expiry_date for b in valid_batches], default='N/A') if valid_batches else 'N/A'
+            
+            writer.writerow([
+                drug.name,
+                drug.generic_name,
+                drug.get_form_display(),
+                drug.strength,
+                total_quantity,
+                batches.count(),
+                f"{total_value:.2f}",
+                nearest_expiry.strftime('%Y-%m-%d') if nearest_expiry != 'N/A' else 'N/A'
+            ])
+    
+    elif report_type == 'sales':
+        # Sales Report
+        writer.writerow(['Date', 'Invoice #', 'Items', 'Subtotal', 'Tax', 'Total', 'Payment Method', 'Pharmacist'])
+        
+        sales = Sale.objects.filter(pharmacy=request.pharmacy).order_by('-created_at')
+        
+        # Apply date filters if provided
+        if date_from:
+            sales = sales.filter(created_at__date__gte=date_from)
+        if date_to:
+            sales = sales.filter(created_at__date__lte=date_to)
+        
+        for sale in sales:
+            writer.writerow([
+                sale.created_at.strftime('%Y-%m-%d %H:%M'),
+                sale.invoice_number,
+                sale.items.count(),
+                f"{float(sale.subtotal):.2f}",
+                f"{float(sale.tax):.2f}",
+                f"{float(sale.total):.2f}",
+                sale.get_payment_method_display(),
+                sale.pharmacist.get_full_name() if sale.pharmacist else 'N/A'
+            ])
+    
+    elif report_type == 'expiry':
+        # Expiry Report
+        writer.writerow(['Drug', 'Batch #', 'Quantity', 'Manufacture Date', 'Expiry Date', 'Days Until Expiry', 'Supplier'])
+        
+        today = timezone.now().date()
+        batches = Batch.objects.filter(
+            pharmacy=request.pharmacy,
+            expiry_date__gte=today,
+            quantity__gt=0
+        ).order_by('expiry_date')
+        
+        for batch in batches:
+            days_until = (batch.expiry_date - today).days
+            writer.writerow([
+                batch.drug.name,
+                batch.batch_number,
+                batch.quantity,
+                batch.manufacture_date.strftime('%Y-%m-%d'),
+                batch.expiry_date.strftime('%Y-%m-%d'),
+                days_until,
+                batch.supplier.name if batch.supplier else 'N/A'
+            ])
+    
+    elif report_type == 'prescriptions':
+        # Prescriptions Report
+        writer.writerow(['Prescription #', 'Patient', 'Doctor', 'Date', 'Status', 'Items', 'Pharmacist'])
+        
+        prescriptions = Prescription.objects.filter(pharmacy=request.pharmacy).order_by('-created_at')
+        
+        if date_from:
+            prescriptions = prescriptions.filter(created_at__date__gte=date_from)
+        if date_to:
+            prescriptions = prescriptions.filter(created_at__date__lte=date_to)
+        
+        for rx in prescriptions:
+            writer.writerow([
+                rx.prescription_number,
+                rx.patient.full_name,
+                rx.prescribed_by,
+                rx.prescribed_date.strftime('%Y-%m-%d'),
+                rx.get_status_display(),
+                rx.items.count(),
+                rx.pharmacist.get_full_name() if rx.pharmacist else 'N/A'
+            ])
+    
+    elif report_type == 'low_stock':
+        # Low Stock Report
+        writer.writerow(['Drug', 'Batch #', 'Current Stock', 'Expiry Date', 'Supplier', 'Status'])
+        
+        threshold = int(request.GET.get('threshold', 50))
+        batches = Batch.objects.filter(
+            pharmacy=request.pharmacy,
+            quantity__lte=threshold,
+            quantity__gt=0
+        ).order_by('quantity')
+        
+        for batch in batches:
+            writer.writerow([
+                batch.drug.name,
+                batch.batch_number,
+                batch.quantity,
+                batch.expiry_date.strftime('%Y-%m-%d'),
+                batch.supplier.name if batch.supplier else 'N/A',
+                'Critical' if batch.quantity <= 10 else 'Low'
+            ])
+    
+    return response

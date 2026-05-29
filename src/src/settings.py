@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # THIRD PARTY APPS
-    'rest_framework',
+    # 'rest_framework',
     'crispy_forms',
     'crispy_bootstrap5',
     'cloudinary',
@@ -112,6 +112,17 @@ if DEBUG:
 else:
     DATABASES = {
     'default': dj_database_url.config(default=DATABASE_URL)
+    }
+
+
+# Add connection timeout and keepalive settings
+if 'postgres' in DATABASES['default']['ENGINE']:
+    DATABASES['default']['OPTIONS'] = {
+        'connect_timeout': 30,
+        'keepalives': 1,
+        'keepalives_idle': 30,
+        'keepalives_interval': 10,
+        'keepalives_count': 5,
     }
 
 

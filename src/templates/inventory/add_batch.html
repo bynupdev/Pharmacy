@@ -103,9 +103,9 @@
 
                             <!-- Purchase Price -->
                             <div class="col-md-4 mb-3">
-                                <label for="{{ form.purchase_price.id_for_label }}" class="form-label">Purchase Price ($) <span class="text-danger">*</span></label>
+                                <label for="{{ form.purchase_price.id_for_label }}" class="form-label">Purchase Price (XAF) <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <span class="input-group-text">$</span>
+                                    <span class="input-group-text">XAF</span>
                                     <input type="number" 
                                            name="{{ form.purchase_price.name }}" 
                                            id="{{ form.purchase_price.id_for_label }}" 
@@ -124,9 +124,9 @@
 
                             <!-- Selling Price -->
                             <div class="col-md-4 mb-3">
-                                <label for="{{ form.selling_price.id_for_label }}" class="form-label">Selling Price ($) <span class="text-danger">*</span></label>
+                                <label for="{{ form.selling_price.id_for_label }}" class="form-label">Selling Price (XAF) <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <span class="input-group-text">$</span>
+                                    <span class="input-group-text">XAF</span>
                                     <input type="number" 
                                            name="{{ form.selling_price.name }}" 
                                            id="{{ form.selling_price.id_for_label }}" 
@@ -195,17 +195,17 @@
                                     </div>
                                     <div class="col-sm-6">
                                         <small>Total Investment:</small><br>
-                                        <strong class="total-investment">$0.00</strong>
+                                        <strong class="total-investment">XAF0.00</strong>
                                     </div>
                                 </div>
                                 <div class="row mt-2">
                                     <div class="col-sm-6">
                                         <small>Expected Revenue:</small><br>
-                                        <strong class="expected-revenue">$0.00</strong>
+                                        <strong class="expected-revenue">XAF0.00</strong>
                                     </div>
                                     <div class="col-sm-6">
                                         <small>Expected Profit:</small><br>
-                                        <strong class="expected-profit text-success">$0.00</strong>
+                                        <strong class="expected-profit text-success">XAF0.00</strong>
                                     </div>
                                 </div>
                             </div>
@@ -258,19 +258,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const margin = totalInvestment > 0 ? (profit / totalInvestment * 100) : 0;
         
         // Update summary
-        document.querySelector('.total-investment').textContent = `$${totalInvestment.toFixed(2)}`;
-        document.querySelector('.expected-revenue').textContent = `$${totalRevenue.toFixed(2)}`;
+        document.querySelector('.total-investment').textContent = `XAF${totalInvestment.toFixed(2)}`;
+        document.querySelector('.expected-revenue').textContent = `XAF${totalRevenue.toFixed(2)}`;
         const profitElement = document.querySelector('.expected-profit');
-        profitElement.textContent = `$${profit.toFixed(2)}`;
+        profitElement.textContent = `XAF${profit.toFixed(2)}`;
         profitElement.className = profit >= 0 ? 'expected-profit text-success' : 'expected-profit text-danger';
         
         // Update profit indicator
         const indicator = document.querySelector('.profit-indicator');
         if (profit > 0) {
-            indicator.innerHTML = `Profit: $${profit.toFixed(2)} (${margin.toFixed(1)}% margin)`;
+            indicator.innerHTML = `Profit: XAF${profit.toFixed(2)} (${margin.toFixed(1)}% margin)`;
             indicator.style.color = 'green';
         } else if (profit < 0) {
-            indicator.innerHTML = `Loss: $${Math.abs(profit).toFixed(2)} (selling below cost)`;
+            indicator.innerHTML = `Loss: XAF${Math.abs(profit).toFixed(2)} (selling below cost)`;
             indicator.style.color = 'red';
         } else {
             indicator.innerHTML = '';

@@ -23,63 +23,113 @@ def pos(request):
     }
     return render(request, 'sales/pos.html', context)
 
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+import json
+from decimal import Decimal
+
 @login_required
+@require_http_methods(["POST"])
 def sale_create(request):
-    """Create new sale"""
-    if request.method == 'POST':
+    """Create new sale from POS"""
+    try:
+        # Parse JSON data
         data = json.loads(request.body)
+        
+        print(f"📊 Sale data received: {data}")
+        
+        items_data = data.get('items', [])
+        subtotal = Decimal(str(data.get('subtotal', 0)))
+        discount = Decimal(str(data.get('discount', 0)))
+        tax = Decimal(str(data.get('tax', 0)))
+        total = Decimal(str(data.get('total', 0)))
+        payment_method = data.get('payment_method', 'cash')
+        payment_reference = data.get('payment_reference', '')
+        
+        if not items_data:
+            return JsonResponse({'error': 'No items in sale'}, status=400)
+        
+        # Generate invoice number
+        from datetime import datetime
+        import random
+        invoice_number = f"INV-{datetime.now().strftime('%Y%m%d%H%M%S')}-{random.randint(100, 999)}"
         
         # Create sale
         sale = Sale.objects.create(
-            invoice_number=generate_invoice_number(),
+            invoice_number=invoice_number,
             pharmacist=request.user,
-            subtotal=data['subtotal'],
-            discount=data['discount'],
-            tax=data['tax'],
-            total=data['total'],
-            payment_method=data['payment_method'],
-            payment_reference=data.get('payment_reference', '')
+            subtotal=subtotal,
+            discount=discount,
+            tax=tax,
+            total=total,
+            payment_method=payment_method,
+            payment_reference=payment_reference,
+            pharmacy=request.pharmacy
         )
         
         # Create sale items and update stock
-        for item_data in data['items']:
-            batch = Batch.objects.get(id=item_data['batch_id'])
+        for item_data in items_data:
+            batch_id = item_data.get('batch_id')
+            quantity = item_data.get('quantity', 1)
+            unit_price = Decimal(str(item_data.get('price', 0)))
+            total_price = Decimal(str(item_data.get('total', 0)))
+            
+            try:
+                batch = Batch.objects.get(id=batch_id)
+            except Batch.DoesNotExist:
+                return JsonResponse({'error': f'Batch {batch_id} not found'}, status=400)
+            
+            # Check stock availability
+            if batch.quantity < quantity:
+                return JsonResponse({'error': f'Insufficient stock for {batch.drug.name}. Only {batch.quantity} available'}, status=400)
             
             SaleItem.objects.create(
                 sale=sale,
                 batch=batch,
-                quantity=item_data['quantity'],
-                unit_price=item_data['price'],
-                total_price=item_data['total']
+                quantity=quantity,
+                unit_price=unit_price,
+                total_price=total_price
             )
             
             # Update stock
-            batch.quantity -= item_data['quantity']
+            batch.quantity -= quantity
             batch.save()
         
         # Create receipt
+        from .models import Receipt
         receipt = Receipt.objects.create(
             sale=sale,
-            receipt_number=f"RCP{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            receipt_number=f"RCP-{datetime.now().strftime('%Y%m%d%H%M%S')}-{random.randint(100, 999)}"
         )
         
         return JsonResponse({
             'success': True,
             'sale_id': sale.id,
-            'receipt_id': receipt.id
+            'receipt_id': receipt.id,
+            'invoice_number': sale.invoice_number,
+            'total': float(sale.total)
         })
+        
+    except json.JSONDecodeError as e:
+        print(f"JSON decode error: {e}")
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        print(f"Sale creation error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'error': str(e)}, status=500)
     
-    return JsonResponse({'error': 'Invalid method'}, status=405)
+from decimal import Decimal
 
 @login_required
 def create_from_prescription(request, prescription_id):
     """Create sale from prescription"""
     prescription = get_object_or_404(Prescription, pk=prescription_id)
-    
+
     if prescription.status != 'dispensed':
         messages.error(request, 'Prescription must be dispensed first.')
         return redirect('prescriptions:detail', pk=prescription_id)
-    
+
     if request.method == 'POST':
         data = json.loads(request.body)
         
@@ -88,12 +138,13 @@ def create_from_prescription(request, prescription_id):
             invoice_number=generate_invoice_number(),
             prescription=prescription,
             pharmacist=request.user,
-            subtotal=data['subtotal'],
-            discount=data['discount'],
-            tax=data['tax'],
-            total=data['total'],
+            subtotal=Decimal(str(data['subtotal'])),
+            discount=Decimal(str(data.get('discount', 0))),
+            tax=Decimal(str(data.get('tax', 0))),
+            total=Decimal(str(data['total'])),
             payment_method=data['payment_method'],
-            payment_reference=data.get('payment_reference', '')
+            payment_reference=data.get('payment_reference', ''),
+            pharmacy=request.pharmacy  # Add pharmacy for multi-tenant
         )
         
         # Create sale items from prescription items
@@ -105,6 +156,10 @@ def create_from_prescription(request, prescription_id):
                 unit_price=item.batch.selling_price,
                 total_price=item.quantity * item.batch.selling_price
             )
+            
+            # Update batch quantity
+            item.batch.quantity -= item.quantity
+            item.batch.save()
         
         # Create receipt
         receipt = Receipt.objects.create(
@@ -119,12 +174,19 @@ def create_from_prescription(request, prescription_id):
             'receipt_id': receipt.id
         })
     
-    # Calculate totals
+    # GET request - Calculate totals
     items = []
-    subtotal = 0
+    subtotal = Decimal('0.00')
+    
     for item in prescription.items.all():
-        item_total = item.quantity * item.batch.selling_price
+        # Ensure batch exists and has quantity
+        if not item.batch:
+            messages.error(request, f'No batch assigned for {item.drug.name}')
+            return redirect('prescriptions:detail', pk=prescription_id)
+        
+        item_total = Decimal(str(item.quantity)) * item.batch.selling_price
         subtotal += item_total
+        
         items.append({
             'drug': item.drug.name,
             'batch': item.batch.batch_number,
@@ -133,18 +195,19 @@ def create_from_prescription(request, prescription_id):
             'total': float(item_total)
         })
     
-    tax = subtotal * 0.1  # 10% tax
+    tax = subtotal * Decimal('0.10')  # 10% tax
     total = subtotal + tax
     
     context = {
         'prescription': prescription,
         'items': items,
-        'subtotal': subtotal,
-        'tax': tax,
-        'total': total,
+        'subtotal': float(subtotal),
+        'tax': float(tax),
+        'total': float(total),
         'payment_methods': Sale.PAYMENT_METHODS
     }
     return render(request, 'sales/create_from_rx.html', context)
+
 
 @login_required
 def sale_history(request):

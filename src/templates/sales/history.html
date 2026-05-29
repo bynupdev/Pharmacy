@@ -21,7 +21,7 @@
             <div class="card bg-primary text-white">
                 <div class="card-body">
                     <h6>Total Revenue</h6>
-                    <h3>${{ total_revenue|floatformat:2 }}</h3>
+                    <h3>XAF{{ total_revenue|floatformat:2 }}</h3>
                     <small>{{ total_transactions }} transactions</small>
                 </div>
             </div>
@@ -30,7 +30,7 @@
             <div class="card bg-success text-white">
                 <div class="card-body">
                     <h6>Average Transaction</h6>
-                    <h3>${{ avg_transaction|floatformat:2 }}</h3>
+                    <h3>XAF{{ avg_transaction|floatformat:2 }}</h3>
                     <small>Per sale</small>
                 </div>
             </div>
@@ -128,9 +128,9 @@
                             <td>{{ sale.created_at|date:"M d, Y H:i" }}</td>
                             <td>{{ sale.pharmacist.get_full_name }}</td>
                             <td>{{ sale.items.count }}</td>
-                            <td>${{ sale.subtotal|floatformat:2 }}</td>
-                            <td>${{ sale.tax|floatformat:2 }}</td>
-                            <td><strong>${{ sale.total|floatformat:2 }}</strong></td>
+                            <td>XAF{{ sale.subtotal|floatformat:2 }}</td>
+                            <td>XAF{{ sale.tax|floatformat:2 }}</td>
+                            <td><strong>XAF{{ sale.total|floatformat:2 }}</strong></td>
                             <td>
                                 <span class="badge bg-info">{{ sale.get_payment_method_display }}</span>
                             </td>

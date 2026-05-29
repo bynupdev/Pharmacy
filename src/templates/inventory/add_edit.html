@@ -147,8 +147,8 @@
                                     <td>{{ batch.batch_number }}</td>
                                     <td>{{ batch.quantity }}</td>
                                     <td>{{ batch.expiry_date|date:"M d, Y" }}</td>
-                                    <td>${{ batch.purchase_price }}</td>
-                                    <td>${{ batch.selling_price }}</td>
+                                    <td>XAF{{ batch.purchase_price }}</td>
+                                    <td>XAF{{ batch.selling_price }}</td>
                                     <td>
                                         {% if batch.expiry_date < today %}
                                             <span class="badge bg-danger">Expired</span>

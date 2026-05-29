@@ -49,7 +49,7 @@
             <div class="card text-white bg-primary">
                 <div class="card-body">
                     <h6>Total Revenue</h6>
-                    <h3>${{ total_revenue|floatformat:2 }}</h3>
+                    <h3>XAF{{ total_revenue|floatformat:2 }}</h3>
                 </div>
             </div>
         </div>
@@ -65,7 +65,7 @@
             <div class="card text-white bg-info">
                 <div class="card-body">
                     <h6>Average Transaction</h6>
-                    <h3>${{ avg_transaction|floatformat:2 }}</h3>
+                    <h3>XAF{{ avg_transaction|floatformat:2 }}</h3>
                 </div>
             </div>
         </div>
@@ -110,7 +110,7 @@
                                 {% elif method.payment_method == 'mobile' %}📱 Mobile Money
                                 {% else %}{{ method.payment_method }}{% endif %}
                             </span>
-                            <span><strong>${{ method.total|floatformat:2 }}</strong> ({{ method.count }})</span>
+                            <span><strong>XAF{{ method.total|floatformat:2 }}</strong> ({{ method.count }})</span>
                         </div>
                         {% empty %}
                         <p class="text-muted">No payment data</p>
@@ -142,7 +142,7 @@
                             <tr>
                                 <td>{{ drug.batch__drug__name }}</td>
                                 <td>{{ drug.total_quantity }}</td>
-                                <td>${{ drug.total_revenue|floatformat:2 }}</td>
+                                <td>XAF{{ drug.total_revenue|floatformat:2 }}</td>
                             </tr>
                             {% empty %}
                             <tr>
@@ -179,7 +179,7 @@
                                 </td>
                                 <td>{{ sale.created_at|date:"m/d H:i" }}</td>
                                 <td>{{ sale.items.count }}</td>
-                                <td>${{ sale.total|floatformat:2 }}</td>
+                                <td>XAF{{ sale.total|floatformat:2 }}</td>
                             </tr>
                             {% empty %}
                             <tr>
@@ -205,7 +205,7 @@ new Chart(ctx1, {
     data: {
         labels: [{% for sale in daily_sales %}'{{ sale.date }}',{% endfor %}],
         datasets: [{
-            label: 'Daily Sales ($)',
+            label: 'Daily Sales (XAF)',
             data: [{% for sale in daily_sales %}{{ sale.total }},{% endfor %}],
             borderColor: 'rgb(75, 192, 192)',
             tension: 0.1

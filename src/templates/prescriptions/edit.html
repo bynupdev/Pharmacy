@@ -1,176 +1,484 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
+{% load static %}
 
-{% block title %}Edit Prescription{% endblock %}
+{% block title %}Edit Prescription - Pharmacy Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .prescription-container {
+        max-width: 1200px;
+        margin: 30px auto;
+    }
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .card-header {
+        background: linear-gradient(135deg, #0a6c75 0%, #2c9a9e 100%);
+        color: white;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 20px;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        padding: 10px 12px;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #0a6c75;
+        box-shadow: 0 0 0 0.2rem rgba(10,108,117,0.25);
+    }
+    .items-table {
+        width: 100%;
+        margin-top: 20px;
+    }
+    .items-table th {
+        background: #e8f4f5;
+        padding: 12px;
+        font-weight: 600;
+    }
+    .items-table td {
+        padding: 10px;
+        vertical-align: middle;
+    }
+    .btn-add-item {
+        background: #0a6c75;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        margin-top: 15px;
+    }
+    .btn-add-item:hover {
+        background: #2c9a9e;
+        color: white;
+    }
+    .btn-remove-item {
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+    .btn-remove-item:hover {
+        background: #c82333;
+    }
+    .interaction-alert {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 8px;
+    }
+    .interaction-alert.high {
+        background: #f8d7da;
+        border-left-color: #dc3545;
+    }
+    .interaction-alert.moderate {
+        background: #fff3cd;
+        border-left-color: #ffc107;
+    }
+    .drug-search {
+        position: relative;
+    }
+    .drug-search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+    .drug-search-results div {
+        padding: 8px 12px;
+        cursor: pointer;
+    }
+    .drug-search-results div:hover {
+        background: #e8f4f5;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row mb-4">
-        <div class="col">
-            <h1><i class="fas fa-edit"></i> Edit Prescription</h1>
-            <p class="text-muted">Prescription #: {{ prescription.prescription_number }}</p>
+<div class="container prescription-container">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0"><i class="fas fa-edit"></i> Edit Prescription</h4>
+            <p class="mb-0">Prescription #{{ prescription.prescription_number }}</p>
         </div>
-        <div class="col text-end">
-            <a href="/prescriptions/{{ prescription.id }}/" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back
-            </a>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-8 mx-auto">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Edit Prescription Details</h5>
+        <div class="card-body">
+            <!-- Prescription Form -->
+            <form method="post" id="prescriptionForm">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="patient" class="form-label">Patient *</label>
+                        {{ form.patient }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="prescribed_by" class="form-label">Prescribing Doctor *</label>
+                        {{ form.prescribed_by }}
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form method="post" id="prescriptionForm">
-                        {% csrf_token %}
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                {{ form.patient|as_crispy_field }}
-                            </div>
-                            <div class="col-md-6">
-                                {{ form.prescribed_by|as_crispy_field }}
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                {{ form.prescribed_date|as_crispy_field }}
-                            </div>
-                        </div>
-
-                        {{ form.notes|as_crispy_field }}
-
-                        <hr>
-                        <h6>Current Medications</h6>
-                        
-                        <div id="items-container">
-                            {% for item in items %}
-                            <div class="card mb-2">
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <label class="form-label">Drug</label>
-                                            <select class="form-select" name="drug_{{ forloop.counter }}" required>
-                                                <option value="">Select drug...</option>
-                                                {% for drug in drugs %}
-                                                <option value="{{ drug.id }}" {% if drug.id == item.drug.id %}selected{% endif %}>
-                                                    {{ drug.name }} {{ drug.strength }}
-                                                </option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <label class="form-label">Dosage</label>
-                                            <input type="text" class="form-control" name="dosage_{{ forloop.counter }}" 
-                                                   value="{{ item.dosage }}" placeholder="e.g., 1 tablet">
-                                        </div>
-                                        <div class="col-md-2">
-                                            <label class="form-label">Frequency</label>
-                                            <input type="text" class="form-control" name="frequency_{{ forloop.counter }}" 
-                                                   value="{{ item.frequency }}" placeholder="e.g., twice daily">
-                                        </div>
-                                        <div class="col-md-2">
-                                            <label class="form-label">Duration</label>
-                                            <input type="text" class="form-control" name="duration_{{ forloop.counter }}" 
-                                                   value="{{ item.duration }}" placeholder="e.g., 7 days">
-                                        </div>
-                                        <div class="col-md-1">
-                                            <label class="form-label">Qty</label>
-                                            <input type="number" class="form-control" name="quantity_{{ forloop.counter }}" 
-                                                   value="{{ item.quantity }}" min="1">
-                                        </div>
-                                        <div class="col-md-1">
-                                            <label class="form-label">&nbsp;</label>
-                                            <button type="button" class="btn btn-danger btn-sm d-block" onclick="removeItem(this)">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-
-                        <button type="button" class="btn btn-outline-primary mt-2" onclick="addItem()">
-                            <i class="fas fa-plus"></i> Add Another Drug
-                        </button>
-
-                        <hr>
-
-                        <div class="mt-4">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Update Prescription
-                            </button>
-                            <a href="/prescriptions/{{ prescription.id }}/" class="btn btn-secondary">Cancel</a>
-                        </div>
-                    </form>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="prescribed_date" class="form-label">Prescription Date *</label>
+                        {{ form.prescribed_date }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+            </form>
+            
+            <!-- Items Section -->
+            <h5 class="mt-4"><i class="fas fa-pills"></i> Prescription Items</h5>
+            
+            <div class="table-responsive">
+                <table class="items-table" id="items-table">
+                    <thead>
+                        <tr>
+                            <th>Drug</th>
+                            <th>Dosage</th>
+                            <th>Frequency</th>
+                            <th>Duration</th>
+                            <th>Quantity</th>
+                            <th>Instructions</th>
+                            <th>Action</th>
+                        </thead>
+                    </thead>
+                    <tbody id="items-tbody">
+                        {% for item in items %}
+                        <tr data-item-id="{{ item.id }}">
+                            <td>
+                                <input type="hidden" name="drug_id[]" value="{{ item.drug.id }}">
+                                {{ item.drug.name }} ({{ item.drug.strength }})
+                            </td>
+                            <td><input type="text" name="dosage[]" value="{{ item.dosage }}" class="form-control form-control-sm" required></td>
+                            <td><input type="text" name="frequency[]" value="{{ item.frequency }}" class="form-control form-control-sm" required></td>
+                            <td><input type="text" name="duration[]" value="{{ item.duration }}" class="form-control form-control-sm" required></td>
+                            <td><input type="number" name="quantity[]" value="{{ item.quantity }}" class="form-control form-control-sm" required min="1"></td>
+                            <td><input type="text" name="instructions[]" value="{{ item.instructions }}" class="form-control form-control-sm"></td>
+                            <td><button type="button" class="btn-remove-item" onclick="removeItem(this)"><i class="fas fa-trash"></i></button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <button type="button" class="btn-add-item" onclick="showAddItemModal()">
+                <i class="fas fa-plus"></i> Add Item
+            </button>
+            
+            <!-- Interactions Alert Section -->
+            <div id="interactions-container"></div>
+            
+            <!-- Action Buttons -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <a href="{% url 'prescriptions:detail' prescription.id %}" class="btn btn-secondary w-100">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <button type="button" class="btn btn-primary w-100" onclick="checkAndSave()">
+                        <i class="fas fa-save"></i> Save Prescription
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Item Template -->
-<template id="item-template">
-    <div class="card mb-2">
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-4">
-                    <label class="form-label">Drug</label>
-                    <select class="form-select" name="drug_new" required>
-                        <option value="">Select drug...</option>
-                        {% for drug in drugs %}
-                        <option value="{{ drug.id }}">{{ drug.name }} {{ drug.strength }}</option>
-                        {% endfor %}
-                    </select>
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Prescription Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Drug *</label>
+                    <div class="drug-search">
+                        <input type="text" id="drug-search-input" class="form-control" placeholder="Search for a drug..." autocomplete="off">
+                        <div id="drug-search-results" class="drug-search-results"></div>
+                    </div>
+                    <input type="hidden" id="selected-drug-id">
+                    <input type="hidden" id="selected-drug-name">
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Dosage</label>
-                    <input type="text" class="form-control" name="dosage_new" placeholder="e.g., 1 tablet">
+                <div class="mb-3">
+                    <label class="form-label">Dosage *</label>
+                    <input type="text" id="modal-dosage" class="form-control" placeholder="e.g., 1 tablet">
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Frequency</label>
-                    <input type="text" class="form-control" name="frequency_new" placeholder="e.g., twice daily">
+                <div class="mb-3">
+                    <label class="form-label">Frequency *</label>
+                    <input type="text" id="modal-frequency" class="form-control" placeholder="e.g., twice daily">
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Duration</label>
-                    <input type="text" class="form-control" name="duration_new" placeholder="e.g., 7 days">
+                <div class="mb-3">
+                    <label class="form-label">Duration *</label>
+                    <input type="text" id="modal-duration" class="form-control" placeholder="e.g., 7 days">
                 </div>
-                <div class="col-md-1">
-                    <label class="form-label">Qty</label>
-                    <input type="number" class="form-control" name="quantity_new" value="1" min="1">
+                <div class="mb-3">
+                    <label class="form-label">Quantity *</label>
+                    <input type="number" id="modal-quantity" class="form-control" min="1">
                 </div>
-                <div class="col-md-1">
-                    <label class="form-label">&nbsp;</label>
-                    <button type="button" class="btn btn-danger btn-sm d-block" onclick="removeItem(this)">
-                        <i class="fas fa-times"></i>
-                    </button>
+                <div class="mb-3">
+                    <label class="form-label">Instructions</label>
+                    <input type="text" id="modal-instructions" class="form-control" placeholder="Special instructions">
                 </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addItem()">Add Item</button>
             </div>
         </div>
     </div>
-</template>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-5">
+                <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
+                <p class="mt-3">Checking for interactions...</p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-let itemCount = {{ items.count }};
+// Global variables
+let csrfToken = '{{ csrf_token }}';
+let prescriptionId = {{ prescription.id }};
+
+// Drug search functionality
+const searchInput = document.getElementById('drug-search-input');
+const searchResults = document.getElementById('drug-search-results');
+let searchTimeout;
+
+if (searchInput) {
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value;
+        
+        if (query.length < 2) {
+            searchResults.style.display = 'none';
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`/inventory/api/search/?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    searchResults.innerHTML = '';
+                    if (data.results && data.results.length > 0) {
+                        data.results.forEach(drug => {
+                            const div = document.createElement('div');
+                            div.textContent = `${drug.name} ${drug.strength} - ${drug.generic_name}`;
+                            div.onclick = () => selectDrug(drug);
+                            searchResults.appendChild(div);
+                        });
+                        searchResults.style.display = 'block';
+                    } else {
+                        searchResults.innerHTML = '<div class="text-muted p-2">No drugs found</div>';
+                        searchResults.style.display = 'block';
+                    }
+                });
+        }, 300);
+    });
+    
+    // Hide results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.style.display = 'none';
+        }
+    });
+}
+
+function selectDrug(drug) {
+    document.getElementById('selected-drug-id').value = drug.id;
+    document.getElementById('selected-drug-name').value = drug.name;
+    searchInput.value = `${drug.name} ${drug.strength}`;
+    searchResults.style.display = 'none';
+}
+
+function showAddItemModal() {
+    // Clear modal fields
+    document.getElementById('selected-drug-id').value = '';
+    document.getElementById('selected-drug-name').value = '';
+    searchInput.value = '';
+    document.getElementById('modal-dosage').value = '';
+    document.getElementById('modal-frequency').value = '';
+    document.getElementById('modal-duration').value = '';
+    document.getElementById('modal-quantity').value = '';
+    document.getElementById('modal-instructions').value = '';
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('addItemModal'));
+    modal.show();
+}
 
 function addItem() {
-    const template = document.getElementById('item-template');
-    const clone = template.content.cloneNode(true);
-    document.getElementById('items-container').appendChild(clone);
-    itemCount++;
+    const drugId = document.getElementById('selected-drug-id').value;
+    const drugName = document.getElementById('selected-drug-name').value;
+    const dosage = document.getElementById('modal-dosage').value;
+    const frequency = document.getElementById('modal-frequency').value;
+    const duration = document.getElementById('modal-duration').value;
+    const quantity = document.getElementById('modal-quantity').value;
+    const instructions = document.getElementById('modal-instructions').value;
+    
+    if (!drugId || !dosage || !frequency || !duration || !quantity) {
+        alert('Please fill all required fields');
+        return;
+    }
+    
+    // Add row to table
+    const tbody = document.getElementById('items-tbody');
+    const row = tbody.insertRow();
+    
+    row.innerHTML = `
+        <td>
+            <input type="hidden" name="drug_id[]" value="${drugId}">
+            ${drugName}
+        </td>
+        <td><input type="text" name="dosage[]" value="${dosage}" class="form-control form-control-sm" required></td>
+        <td><input type="text" name="frequency[]" value="${frequency}" class="form-control form-control-sm" required></td>
+        <td><input type="text" name="duration[]" value="${duration}" class="form-control form-control-sm" required></td>
+        <td><input type="number" name="quantity[]" value="${quantity}" class="form-control form-control-sm" required min="1"></td>
+        <td><input type="text" name="instructions[]" value="${instructions}" class="form-control form-control-sm"></td>
+        <td><button type="button" class="btn-remove-item" onclick="removeItem(this)"><i class="fas fa-trash"></i></button></td>
+    `;
+    
+    // Close modal
+    bootstrap.Modal.getInstance(document.getElementById('addItemModal')).hide();
+    
+    // Check interactions for the new item
+    checkInteractions();
 }
 
 function removeItem(button) {
-    if (confirm('Remove this item from prescription?')) {
-        button.closest('.card').remove();
-    }
+    const row = button.closest('tr');
+    row.remove();
+    checkInteractions();
 }
+
+function getItemsData() {
+    const items = [];
+    const rows = document.querySelectorAll('#items-tbody tr');
+    
+    rows.forEach(row => {
+        const drugId = row.querySelector('input[name="drug_id[]"]').value;
+        const dosage = row.querySelector('input[name="dosage[]"]').value;
+        const frequency = row.querySelector('input[name="frequency[]"]').value;
+        const duration = row.querySelector('input[name="duration[]"]').value;
+        const quantity = row.querySelector('input[name="quantity[]"]').value;
+        const instructions = row.querySelector('input[name="instructions[]"]').value;
+        
+        items.push({
+            drug_id: drugId,
+            dosage: dosage,
+            frequency: frequency,
+            duration: duration,
+            quantity: quantity,
+            instructions: instructions
+        });
+    });
+    
+    return items;
+}
+
+function checkInteractions() {
+    const patientId = document.querySelector('#id_patient').value;
+    const items = getItemsData();
+    
+    if (!patientId || items.length === 0) {
+        return;
+    }
+    
+    const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+    loadingModal.show();
+    
+    fetch('/prescriptions/api/check-interactions/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            patient_id: patientId,
+            items: items
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        loadingModal.hide();
+        displayInteractions(data.alerts || []);
+    })
+    .catch(error => {
+        loadingModal.hide();
+        console.error('Error:', error);
+    });
+}
+
+function displayInteractions(alerts) {
+    const container = document.getElementById('interactions-container');
+    
+    if (!alerts || alerts.length === 0) {
+        container.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle"></i> No interactions detected.</div>';
+        return;
+    }
+    
+    let html = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> <strong>Interactions Detected:</strong><br><br>';
+    
+    alerts.forEach(alert => {
+        const severityClass = alert.severity === 'high' ? 'high' : 'moderate';
+        html += `<div class="interaction-alert ${severityClass} mb-2">
+                    <strong>⚠️ ${alert.severity.toUpperCase()} RISK</strong><br>
+                    ${alert.description}
+                </div>`;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function checkAndSave() {
+    const items = getItemsData();
+    
+    if (items.length === 0) {
+        alert('Please add at least one medication');
+        return;
+    }
+    
+    // Submit the form
+    document.getElementById('prescriptionForm').submit();
+}
+
+// Auto-check interactions when patient or items change
+document.addEventListener('DOMContentLoaded', function() {
+    const patientSelect = document.getElementById('id_patient');
+    if (patientSelect) {
+        patientSelect.addEventListener('change', checkInteractions);
+    }
+    
+    // Initial check
+    setTimeout(checkInteractions, 500);
+});
 </script>
 {% endblock %}

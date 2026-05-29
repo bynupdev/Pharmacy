@@ -72,8 +72,8 @@
                                     {{ batch.quantity }}
                                 </span>
                             </td>
-                            <td>${{ batch.purchase_price|floatformat:2 }}</td>
-                            <td>${{ batch.selling_price|floatformat:2 }}</td>
+                            <td>XAF{{ batch.purchase_price|floatformat:2 }}</td>
+                            <td>XAF{{ batch.selling_price|floatformat:2 }}</td>
                             <td>{{ batch.manufacture_date|date:"m/d/Y" }}</td>
                             <td>{{ batch.expiry_date|date:"m/d/Y" }}</td>
                             <td>

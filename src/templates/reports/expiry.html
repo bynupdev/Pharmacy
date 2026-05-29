@@ -42,7 +42,7 @@
             <div class="card text-white bg-info">
                 <div class="card-body">
                     <h6>Value at Risk</h6>
-                    <h3>${{ expiring_value|floatformat:2 }}</h3>
+                    <h3>XAF{{ expiring_value|floatformat:2 }}</h3>
                     <small>expiring soon</small>
                 </div>
             </div>
@@ -51,7 +51,7 @@
             <div class="card text-white bg-secondary">
                 <div class="card-body">
                     <h6>Loss from Expired</h6>
-                    <h3>${{ expired_value|floatformat:2 }}</h3>
+                    <h3>XAF{{ expired_value|floatformat:2 }}</h3>
                     <small>total cost</small>
                 </div>
             </div>
@@ -91,7 +91,7 @@
                                             {{ batch.days_until_expiry }} days
                                         </span>
                                     </td>
-                                    <td>${{ batch.quantity|multiply:batch.purchase_price|floatformat:2 }}</td>
+                                    <td>XAF{{ batch.quantity|multiply:batch.purchase_price|floatformat:2 }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -136,7 +136,7 @@
                                             {{ batch.days_until_expiry|abs }} days
                                         </span>
                                     </td>
-                                    <td class="text-danger">${{ batch.quantity|multiply:batch.purchase_price|floatformat:2 }}</td>
+                                    <td class="text-danger">XAF{{ batch.quantity|multiply:batch.purchase_price|floatformat:2 }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

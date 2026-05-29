@@ -1,126 +1,162 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Dispense Prescription{% endblock %}
+{% block title %}Dispense Prescription - Pharmacy Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dispense-container {
+        max-width: 1000px;
+        margin: 30px auto;
+    }
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .card-header {
+        background: linear-gradient(135deg, #0a6c75 0%, #2c9a9e 100%);
+        color: white;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 20px;
+    }
+    .items-table {
+        width: 100%;
+    }
+    .items-table th {
+        background: #e8f4f5;
+        padding: 12px;
+    }
+    .items-table td {
+        padding: 10px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .batch-info {
+        font-size: 12px;
+        color: #6c757d;
+    }
+    .stock-ok {
+        color: #28a745;
+        font-weight: 600;
+    }
+    .stock-warning {
+        color: #dc3545;
+        font-weight: 600;
+    }
+    .btn-dispense {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 30px;
+        font-weight: 600;
+        width: 100%;
+    }
+    .btn-dispense:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(40,167,69,0.3);
+        color: white;
+    }
+    .btn-dispense:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row mb-4">
-        <div class="col">
-            <h1><i class="fas fa-hand-holding-medical"></i> Dispense Prescription</h1>
-            <p class="text-muted">Prescription #: {{ prescription.prescription_number }}</p>
+<div class="container dispense-container">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0"><i class="fas fa-cash-register"></i> Dispense Prescription</h4>
+            <p class="mb-0">Prescription #{{ prescription.prescription_number }}</p>
         </div>
-        <div class="col text-end">
-            <a href="/prescriptions/{{ prescription.id }}/" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back
-            </a>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-8 mx-auto">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">Dispense Medications</h5>
+        <div class="card-body">
+            <!-- Prescription Info -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <p><strong>Patient:</strong> {{ prescription.patient.full_name }}</p>
+                    <p><strong>Doctor:</strong> {{ prescription.prescribed_by }}</p>
+                    <p><strong>Date:</strong> {{ prescription.prescribed_date|date:"M d, Y" }}</p>
                 </div>
-                <div class="card-body">
-                    <!-- Patient Information -->
-                    <div class="alert alert-info">
-                        <strong>Patient:</strong> {{ prescription.patient.full_name }}<br>
-                        <strong>Age:</strong> {{ prescription.patient.age }} years<br>
-                        <strong>Allergies:</strong> {{ prescription.patient.allergies|default:"None" }}
-                    </div>
-
-                    <!-- Stock Availability -->
-                    <h6>Stock Check:</h6>
-                    <table class="table table-bordered mb-4">
-                        <thead>
-                            <tr>
-                                <th>Drug</th>
-                                <th>Required</th>
-                                <th>Available Batch</th>
-                                <th>Available Qty</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in prescription.items.all %}
-                            <tr>
-                                <td>{{ item.drug.name }} ({{ item.drug.strength }})</td>
-                                <td>{{ item.quantity }}</td>
-                                <td>
-                                    {% if item.batch %}
-                                        {{ item.batch.batch_number }}
-                                    {% else %}
-                                        <span class="text-warning">Not assigned</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ item.batch.quantity|default:"0" }}</td>
-                                <td>
-                                    {% if item.batch and item.batch.quantity >= item.quantity %}
-                                        <span class="badge bg-success">In Stock</span>
-                                    {% else %}
-                                        <span class="badge bg-danger">Out of Stock</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-
-                    <!-- Dispense Form -->
-                    <form method="post" id="dispenseForm">
+                <div class="col-md-6">
+                    <p><strong>Status:</strong> 
+                        <span class="badge bg-success">Verified</span>
+                    </p>
+                    <p><strong>Pharmacist:</strong> {{ prescription.pharmacist.get_full_name|default:prescription.pharmacist.username }}</p>
+                </div>
+            </div>
+            
+            <!-- Items Table -->
+            <h5><i class="fas fa-pills"></i> Prescription Items</h5>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Drug</th>
+                        <th>Dosage & Frequency</th>
+                        <th>Quantity</th>
+                        <th>Batch #</th>
+                        <th>Stock Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.drug.name }}</strong><br>
+                            <small class="text-muted">{{ item.drug.generic_name }} {{ item.drug.strength }}</small>
+                        </td>
+                        <td>{{ item.dosage }} - {{ item.frequency }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>
+                            {% if item.batch %}
+                                {{ item.batch.batch_number }}<br>
+                                <small class="batch-info">Exp: {{ item.batch.expiry_date|date:"M d, Y" }}</small>
+                            {% else %}
+                                <span class="text-danger">No batch assigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.batch and item.batch.quantity >= item.quantity %}
+                                <span class="stock-ok"><i class="fas fa-check-circle"></i> In Stock ({{ item.batch.quantity }} available)</span>
+                            {% elif item.batch %}
+                                <span class="stock-warning"><i class="fas fa-exclamation-triangle"></i> Low Stock (Only {{ item.batch.quantity }} available)</span>
+                            {% else %}
+                                <span class="stock-warning"><i class="fas fa-times-circle"></i> Out of Stock</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- Action Buttons -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <a href="{% url 'prescriptions:detail' prescription.id %}" class="btn btn-secondary w-100">
+                        <i class="fas fa-arrow-left"></i> Cancel
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <form method="post">
                         {% csrf_token %}
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Counseling Notes</label>
-                            <textarea name="pharmacist_notes" class="form-control" rows="3" 
-                                      placeholder="Any counseling points discussed with patient..."></textarea>
-                        </div>
-
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" name="counsel_patient" class="form-check-input" id="counselCheck" required>
-                            <label class="form-check-label" for="counselCheck">
-                                I have counseled the patient on proper medication use, side effects, and storage requirements
-                            </label>
-                        </div>
-
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" name="verify_instructions" class="form-check-input" id="verifyCheck" required>
-                            <label class="form-check-label" for="verifyCheck">
-                                I have verified the dosage instructions are correct and appropriate for this patient
-                            </label>
-                        </div>
-
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            By dispensing this prescription, you confirm that you have verified all details and counseled the patient appropriately.
-                        </div>
-
-                        <button type="submit" class="btn btn-success btn-lg w-100" 
-                                {% if not stock_available %}disabled{% endif %}>
-                            <i class="fas fa-check-circle"></i> Dispense Prescription
+                        <button type="submit" class="btn-dispense" id="dispense-btn" {% if not stock_available %}disabled{% endif %}>
+                            <i class="fas fa-check-circle"></i> Confirm Dispense
                         </button>
                     </form>
-
-                    {% if not stock_available %}
-                    <div class="alert alert-danger mt-3">
-                        <i class="fas fa-times-circle"></i>
-                        Cannot dispense: One or more items are out of stock. Please update inventory or contact supplier.
-                    </div>
-                    {% endif %}
                 </div>
+            </div>
+            
+            <!-- Note -->
+            <div class="alert alert-info mt-4">
+                <i class="fas fa-info-circle"></i>
+                <strong>Note:</strong> Dispensing will deduct the medications from inventory and create a sale record.
+                {% if not stock_available %}
+                <br><span class="text-danger">⚠️ Please resolve stock issues before dispensing.</span>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-document.getElementById('dispenseForm').addEventListener('submit', function(e) {
-    if (!confirm('Are you sure you want to dispense this prescription? This action cannot be undone.')) {
-        e.preventDefault();
-    }
-});
-</script>
 {% endblock %}

@@ -8,5 +8,8 @@ urlpatterns = [
     path('expiry/', views.expiry_report, name='expiry'),
     path('low-stock/', views.low_stock_report, name='low_stock'),
     path('interactions/', views.interaction_report, name='interactions'),
-    path('export/<str:report_type>/', views.export_report, name='export'),
+    # path('export/<str:report_type>/', views.export_report, name='export'),
+
+    path('export/', views.export_report, name='export'),  # Add this line
+    path('export/<str:report_type>/', views.export_report, name='export_with_type'), 
 ]

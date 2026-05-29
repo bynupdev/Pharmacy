@@ -13,5 +13,7 @@ urlpatterns = [
     path('api/check-interactions/', views.check_interactions_api, name='check_interactions'),
     path('api/override/<int:interaction_id>/', views.override_interaction, name='override_interaction'),
     path('interaction-logs/', views.interaction_logs, name='interaction_logs'),
+    path('api/check-fda-dosage/', views.check_fda_dosage_api, name='check_fda_dosage'),
+
     path('debug-api/', views.debug_api, name='debug_api'),
     ]

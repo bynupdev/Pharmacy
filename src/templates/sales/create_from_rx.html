@@ -1,0 +1,320 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Sale from Prescription - Pharmacy Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sale-container {
+        max-width: 800px;
+        margin: 30px auto;
+    }
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .card-header {
+        background: linear-gradient(135deg, #0a6c75 0%, #2c9a9e 100%);
+        color: white;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 20px;
+    }
+    .prescription-info {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    .items-table {
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    .items-table th {
+        background: #e8f4f5;
+        padding: 10px;
+    }
+    .items-table td {
+        padding: 10px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .totals {
+        text-align: right;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 10px;
+    }
+    .totals p {
+        margin: 5px 0;
+    }
+    .totals .total-amount {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #0a6c75;
+    }
+    .btn-payment {
+        background: linear-gradient(135deg, #0a6c75 0%, #2c9a9e 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 30px;
+        font-weight: 600;
+        width: 100%;
+        margin-top: 20px;
+    }
+    .btn-payment:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(10,108,117,0.3);
+        color: white;
+    }
+    .payment-methods {
+        display: flex;
+        gap: 15px;
+        margin: 20px 0;
+    }
+    .payment-method {
+        flex: 1;
+        text-align: center;
+        padding: 15px;
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .payment-method.selected {
+        border-color: #0a6c75;
+        background: #e8f4f5;
+    }
+    .payment-method i {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 10px;
+    }
+    .payment-method.selected i {
+        color: #0a6c75;
+    }
+    .payment-reference {
+        display: none;
+        margin-top: 15px;
+    }
+    .payment-reference.show {
+        display: block;
+    }
+    .modal-content {
+        border-radius: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="sale-container">
+        <!-- Prescription Details Card -->
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-prescription-bottle"></i> Prescription #{{ prescription.prescription_number }}</h4>
+                <p class="mb-0">Patient: {{ prescription.patient.full_name }}</p>
+            </div>
+            <div class="card-body">
+                <!-- Prescription Info -->
+                <div class="prescription-info">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Doctor:</strong> {{ prescription.prescribed_by }}</p>
+                            <p><strong>Date:</strong> {{ prescription.prescribed_date|date:"M d, Y" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-success">Dispensed</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Items Table -->
+                <h5><i class="fas fa-list"></i> Prescription Items</h5>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Drug</th>
+                            <th>Batch</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ item.drug }}<br><small class="text-muted">{{ item.drug.generic_name }}</small></td>
+                            <td>{{ item.batch }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>XAF{{ item.price|floatformat:2 }}</td>
+                            <td>XAF{{ item.total|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Totals -->
+                <div class="totals">
+                    <p><strong>Subtotal:</strong> XAF{{ subtotal|floatformat:2 }}</p>
+                    <p><strong>Tax (10%):</strong> XAF{{ tax|floatformat:2 }}</p>
+                    <p class="total-amount"><strong>Total:</strong> XAF{{ total|floatformat:2 }}</p>
+                </div>
+
+                <!-- Payment Method Selection -->
+                <h5><i class="fas fa-credit-card"></i> Payment Method</h5>
+                <div class="payment-methods">
+                    <div class="payment-method" data-method="cash">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <span>Cash</span>
+                    </div>
+                    <div class="payment-method" data-method="card">
+                        <i class="fab fa-cc-visa"></i>
+                        <span>Card</span>
+                    </div>
+                    <div class="payment-method" data-method="mobile">
+                        <i class="fas fa-mobile-alt"></i>
+                        <span>Mobile Money</span>
+                    </div>
+                    <div class="payment-method" data-method="insurance">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Insurance</span>
+                    </div>
+                </div>
+
+                <!-- Payment Reference Field -->
+                <div class="payment-reference" id="payment-ref-field">
+                    <label>Reference Number:</label>
+                    <input type="text" id="payment_reference" class="form-control" placeholder="Enter transaction reference">
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <a href="{% url 'prescriptions:detail' prescription.id %}" class="btn btn-secondary w-100">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn-payment" id="complete-sale-btn">
+                            <i class="fas fa-check-circle"></i> Complete Sale
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-5">
+                <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
+                <p class="mt-3">Processing payment...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                <h4>Payment Successful!</h4>
+                <p>Sale completed successfully.</p>
+            </div>
+            <div class="modal-footer">
+                <a href="{% url 'sales:history' %}" class="btn btn-primary">View Sales History</a>
+                <a href="{% url 'dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Payment method selection
+let selectedMethod = 'cash';
+let csrfToken = '{{ csrf_token }}';
+
+document.querySelectorAll('.payment-method').forEach(method => {
+    method.addEventListener('click', function() {
+        // Remove selected class from all
+        document.querySelectorAll('.payment-method').forEach(m => m.classList.remove('selected'));
+        // Add selected class to clicked
+        this.classList.add('selected');
+        selectedMethod = this.dataset.method;
+        
+        // Show/hide reference field for non-cash payments
+        const refField = document.getElementById('payment-ref-field');
+        if (selectedMethod === 'cash') {
+            refField.classList.remove('show');
+        } else {
+            refField.classList.add('show');
+        }
+    });
+});
+
+// Mark cash as selected by default
+document.querySelector('.payment-method[data-method="cash"]').classList.add('selected');
+
+// Complete sale
+document.getElementById('complete-sale-btn').addEventListener('click', function() {
+    const paymentReference = document.getElementById('payment_reference').value;
+    
+    // Validate payment reference for non-cash methods
+    if (selectedMethod !== 'cash' && !paymentReference) {
+        alert('Please enter a payment reference');
+        return;
+    }
+    
+    // Show loading modal
+    const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+    loadingModal.show();
+    
+    // Prepare data
+    const data = {
+        subtotal: {{ subtotal }},
+        discount: 0,
+        tax: {{ tax }},
+        total: {{ total }},
+        payment_method: selectedMethod,
+        payment_reference: paymentReference
+    };
+    
+    // Send request
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        loadingModal.hide();
+        
+        if (data.success) {
+            // Show success modal
+            const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+            successModal.show();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        loadingModal.hide();
+        alert('Error processing payment: ' + error);
+    });
+});
+</script>
+{% endblock %}
