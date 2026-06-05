@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Pharmacist Dashboard - Pharmacy Management System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <h4 class="mb-0"><i class="fas fa-user-md"></i> Pharmacist Dashboard</h4>
+                    <small>Welcome, {{ user.get_full_name }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Pending Prescriptions</h5>
+                    <h2 class="mb-0">{{ pending_prescriptions }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Verified Prescriptions</h5>
+                    <h2 class="mb-0">{{ verified_prescriptions }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <h5 class="card-title">Low Stock Alerts</h5>
+                    <h2 class="mb-0">{{ low_stock_alerts }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Today's Sales</h5>
+                    <h2 class="mb-0">{{ today_sales }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'prescriptions:list' %}" class="btn btn-primary w-100 mb-2">
+                        <i class="fas fa-prescription-bottle"></i> View Prescriptions
+                    </a>
+                    <a href="{% url 'prescriptions:create' %}" class="btn btn-success w-100 mb-2">
+                        <i class="fas fa-plus"></i> New Prescription
+                    </a>
+                    <a href="{% url 'sales:pos' %}" class="btn btn-info w-100">
+                        <i class="fas fa-cash-register"></i> Point of Sale
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted text-center">Recent prescriptions and sales will appear here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

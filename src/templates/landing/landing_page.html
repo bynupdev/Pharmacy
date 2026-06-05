@@ -430,7 +430,7 @@
                 <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
                 <li class="nav-item"><a class="nav-link" href="#solutions">Solutions</a></li>
                 <li class="nav-item"><a class="nav-link" href="#resources">Resources</a></li>
-                {%if request.user%}
+                {%if not request.user%}
                 <li class="nav-item"><a class="btn-login" href="{% url 'dashboard' %}">Dashboard</a></li>
                 {%else%}
                 <li class="nav-item"><a class="btn-login" href="{% url 'accounts:login' %}">Sign In</a></li>

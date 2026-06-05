@@ -14,11 +14,10 @@ from datetime import timedelta
 from prescriptions.models import Prescription
 from inventory.models import Batch, StockAlert
 from sales.models import Sale
-from .models import UserProfile, PasswordResetToken
+from .models import UserProfile, PasswordResetToken, Pharmacy, PendingUserRequest
 from .forms import (
-    UserForm, UserProfileForm, LoginForm, 
-    UserRegistrationForm, PasswordResetRequestForm,
-    SetPasswordForm
+    LoginForm, PharmacyRegistrationForm, AdminApprovalForm,
+    UserRoleUpdateForm, UserEditForm
 )
 from .utils import send_password_reset_email, generate_reset_token
 
@@ -26,51 +25,39 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.hashers import check_password
 
+
 # def login_view(request):
-#     """Fixed login view"""
 #     if request.user.is_authenticated:
 #         return redirect('dashboard')
     
 #     if request.method == 'POST':
 #         form = LoginForm(request, data=request.POST)
-        
 #         if form.is_valid():
 #             username = form.cleaned_data.get('username')
 #             password = form.cleaned_data.get('password')
-            
-#             # Method 1: Use Django's authenticate
-#             user = authenticate(request, username=username, password=password)
+#             user = authenticate(username=username, password=password)
             
 #             if user is not None:
 #                 if user.is_active:
 #                     login(request, user)
-#                     messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
                     
-#                     next_url = request.GET.get('next')
-#                     if next_url:
-#                         return redirect(next_url)
+#                     # Store pharmacy ID in session
+#                     if hasattr(user, 'profile') and user.profile.pharmacy:
+#                         request.session['pharmacy_id'] = user.profile.pharmacy.id
+                    
+#                     messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
 #                     return redirect('dashboard')
 #                 else:
-#                     messages.error(request, 'This account is disabled. Contact administrator.')
+#                     messages.error(request, 'This account is disabled.')
 #             else:
-#                 # Method 2: Manual check for debugging
-#                 try:
-#                     user_obj = User.objects.get(username=username)
-#                     password_check = check_password(password, user_obj.password)
-#                     if password_check:
-#                         messages.error(request, f"Password is correct but authenticate failed. Is user active? {user_obj.is_active}")
-#                     else:
-#                         messages.error(request, "Password is incorrect")
-#                 except User.DoesNotExist:
-#                     messages.error(request, f"User '{username}' does not exist")
-#         else:
-#             messages.error(request, 'Invalid form data. Please check your input.')
+#                 messages.error(request, 'Invalid username or password.')
     
 #     form = LoginForm()
 #     return render(request, 'accounts/login.html', {'form': form})
 
 
 def login_view(request):
+    """Enhanced login with account state checks"""
     if request.user.is_authenticated:
         return redirect('dashboard')
     
@@ -79,25 +66,55 @@ def login_view(request):
         if form.is_valid():
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
+            
             user = authenticate(username=username, password=password)
             
             if user is not None:
-                if user.is_active:
-                    login(request, user)
-                    
-                    # Store pharmacy ID in session
-                    if hasattr(user, 'profile') and user.profile.pharmacy:
-                        request.session['pharmacy_id'] = user.profile.pharmacy.id
-                    
-                    messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
-                    return redirect('dashboard')
+                # Check if user has a profile
+                if not hasattr(user, 'profile'):
+                    messages.error(request, 'Account setup incomplete. Please contact support.')
+                    return redirect('accounts:accounts:login')
+                
+                profile = user.profile
+                
+                # Check account status
+                if not user.is_active:
+                    # Check if there's a pending request
+                    pending = PendingUserRequest.objects.filter(created_user=user, status='pending').first()
+                    if pending:
+                        messages.warning(request, f'Your account is pending approval from {pending.pharmacy.name} admin. Please wait for approval.')
+                    else:
+                        messages.error(request, 'Your account has been deactivated. Contact your pharmacy admin.')
+                    return redirect('accounts:login')
+                
+                if not profile.is_approved:
+                    messages.warning(request, 'Your account is waiting for admin approval. You will be notified once approved.')
+                    return redirect('accounts:login')
+                
+                if not profile.pharmacy or not profile.pharmacy.is_active:
+                    messages.error(request, 'Your pharmacy is inactive. Contact support.')
+                    return redirect('accounts:login')
+                
+                # Login successful
+                login(request, user)
+                messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
+                
+                # Redirect based on role
+                if profile.role == 'admin':
+                    return redirect('accounts:admin_dashboard')
+                elif profile.role == 'pharmacist':
+                    return redirect('accounts:pharmacist_dashboard')
                 else:
-                    messages.error(request, 'This account is disabled.')
+                    return redirect('accounts:technician_dashboard')
             else:
                 messages.error(request, 'Invalid username or password.')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = LoginForm()
     
-    form = LoginForm()
     return render(request, 'accounts/login.html', {'form': form})
+
 
 def logout_view(request):
     """Logout view"""
@@ -105,32 +122,395 @@ def logout_view(request):
     messages.success(request, 'You have been successfully logged out.')
     return redirect('accounts:login')
 
-def register(request):
-    """Simple registration without email verification"""
+# def register(request):
+#     """Simple registration without email verification"""
+#     if request.user.is_authenticated:
+#         return redirect('dashboard')
+    
+#     if request.method == 'POST':
+#         form = UserRegistrationForm(request.POST)
+#         if form.is_valid():
+#             user = form.save()  # This triggers the signal to create UserProfile
+            
+#             profile = user.profile  # Get the profile created by signal
+#             profile.role = form.cleaned_data.get('role', 'technician')
+#             profile.phone_number = form.cleaned_data.get('phone_number', '')
+#             profile.license_number = form.cleaned_data.get('license_number', '')
+#             profile.save()
+            
+#             messages.success(request, 'Account created successfully! You can now log in.')
+#             return redirect('accounts:login')
+#         else:
+#             messages.error(request, 'Please correct the errors below.')
+#     else:
+#         form = UserRegistrationForm()
+    
+#     return render(request, 'accounts/register.html', {'form': form})
+
+
+
+def register_view(request):
+    """Handle registration with pharmacy detection"""
     if request.user.is_authenticated:
         return redirect('dashboard')
     
     if request.method == 'POST':
-        form = UserRegistrationForm(request.POST)
+        form = PharmacyRegistrationForm(request.POST)
+        
         if form.is_valid():
-            user = form.save()  # This triggers the signal to create UserProfile
+            pharmacy_name = form.cleaned_data['pharmacy_name']
+            email = form.cleaned_data['email']
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password1']
+            first_name = form.cleaned_data['first_name']
+            last_name = form.cleaned_data['last_name']
+            phone_number = form.cleaned_data.get('phone_number', '')
             
-            # Don't create UserProfile here - the signal already did!
-            # Just update the profile with additional data
-            profile = user.profile  # Get the profile created by signal
-            profile.role = form.cleaned_data.get('role', 'technician')
-            profile.phone_number = form.cleaned_data.get('phone_number', '')
-            profile.license_number = form.cleaned_data.get('license_number', '')
-            profile.save()
+            # Check if pharmacy already exists
+            existing_pharmacy = Pharmacy.objects.filter(name__iexact=pharmacy_name).first()
             
-            messages.success(request, 'Account created successfully! You can now log in.')
-            return redirect('accounts:login')
+            if existing_pharmacy:
+                # Existing pharmacy - create pending request
+                
+                # Check if user already has a pending request
+                existing_pending = PendingUserRequest.objects.filter(
+                    email__iexact=email,
+                    pharmacy=existing_pharmacy,
+                    status='pending'
+                ).exists()
+                
+                if existing_pending:
+                    messages.warning(request, 'You already have a pending request for this pharmacy. Please wait for admin approval.')
+                    return redirect('accounts:login')
+                
+                # Check if user is already a member of this pharmacy
+                existing_user = User.objects.filter(email__iexact=email).first()
+                if existing_user and hasattr(existing_user, 'profile') and existing_user.profile.pharmacy == existing_pharmacy:
+                    messages.warning(request, 'You are already a member of this pharmacy. Please login.')
+                    return redirect('accounts:login')
+                
+                # Create user account (inactive)
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    is_active=False
+                )
+                
+                # Update the profile that the signal created
+                profile = user.profile
+                profile.role = None
+                profile.phone_number = phone_number
+                profile.pharmacy = existing_pharmacy
+                profile.is_approved = False
+                profile.save()
+                
+                # Create pending request
+                pending_request = PendingUserRequest.objects.create(
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    requested_pharmacy_name=pharmacy_name,
+                    pharmacy=existing_pharmacy,
+                    requested_role='technician',
+                    status='pending',
+                    created_user=user
+                )
+                
+                messages.info(request, f'Your request to join {existing_pharmacy.name} has been sent to the admin for approval.')
+                return redirect('accounts:login')
+                
+            else:
+                # New pharmacy - create everything
+                pharmacy = Pharmacy.objects.create(
+                    name=pharmacy_name,
+                    phone=phone_number,
+                    email=email
+                )
+                
+                # Create user (active)
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    is_active=True
+                )
+                
+                # Update the profile that the signal created
+                profile = user.profile
+                profile.role = 'admin'
+                profile.phone_number = phone_number
+                profile.pharmacy = pharmacy
+                profile.is_approved = True
+                profile.save()
+                
+                messages.success(request, f'Welcome! Your pharmacy "{pharmacy_name}" has been created. You are the administrator.')
+                return redirect('accounts:login')
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = UserRegistrationForm()
+        form = PharmacyRegistrationForm()
     
     return render(request, 'accounts/register.html', {'form': form})
+
+
+def check_pharmacy_exists(request):
+    """AJAX endpoint to check if pharmacy exists"""
+    pharmacy_name = request.GET.get('pharmacy_name', '')
+    if pharmacy_name:
+        exists = Pharmacy.objects.filter(name__iexact=pharmacy_name).exists()
+        return JsonResponse({'exists': exists})
+    return JsonResponse({'exists': False})
+
+
+def check_email_exists(request):
+    """AJAX endpoint to check if email exists"""
+    email = request.GET.get('email', '')
+    if email:
+        exists = User.objects.filter(email__iexact=email).exists()
+        return JsonResponse({'exists': exists})
+    return JsonResponse({'exists': False})
+
+
+@login_required
+def admin_dashboard(request):
+    """Admin dashboard with approval queue and user management"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'admin':
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('dashboard')
+    
+    pharmacy = request.user.profile.pharmacy
+    if not pharmacy:
+        messages.error(request, 'No pharmacy associated with your account.')
+        return redirect('dashboard')
+    
+    # Get pending requests for this pharmacy
+    pending_requests = PendingUserRequest.objects.filter(
+        pharmacy=pharmacy,
+        status='pending'
+    ).order_by('-created_at')
+    
+    # Get approved users
+    users = User.objects.filter(
+        profile__pharmacy=pharmacy,
+        profile__is_approved=True
+    ).select_related('profile')
+    
+    # Statistics
+    stats = {
+        'total_users': users.count(),
+        'admins': users.filter(profile__role='admin').count(),
+        'pharmacists': users.filter(profile__role='pharmacist').count(),
+        'technicians': users.filter(profile__role='technician').count(),
+        'pending_count': pending_requests.count(),
+    }
+    
+    context = {
+        'pending_requests': pending_requests,
+        'users': users,
+        'stats': stats,
+        'pharmacy': pharmacy,
+    }
+    return render(request, 'accounts/admin_dashboard.html', context)
+
+@login_required
+def approve_user(request, request_id):
+    """Approve a pending user request"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'admin':
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    pending = get_object_or_404(PendingUserRequest, id=request_id, pharmacy=request.user.profile.pharmacy)
+    
+    if request.method == 'POST':
+        role = request.POST.get('role', 'technician')
+        
+        if role not in ['pharmacist', 'technician']:
+            return JsonResponse({'error': 'Invalid role'}, status=400)
+        
+        # Update user and profile
+        user = pending.created_user
+        if user:
+            user.is_active = True
+            user.save()
+            
+            profile = user.profile
+            profile.role = role
+            profile.is_approved = True
+            profile.save()
+        
+        # Update pending request
+        pending.status = 'approved'
+        pending.save()
+        
+        messages.success(request, f'{pending.first_name} {pending.last_name} has been approved as {role}.')
+        return redirect('admin_dashboard')
+    
+    return JsonResponse({'error': 'Invalid method'}, status=405)
+
+@login_required
+def reject_user(request, request_id):
+    """Reject a pending user request"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'admin':
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    pending = get_object_or_404(PendingUserRequest, id=request_id, pharmacy=request.user.profile.pharmacy)
+    
+    if request.method == 'POST':
+        reason = request.POST.get('reason', '')
+        
+        # Update pending request
+        pending.status = 'rejected'
+        pending.rejection_reason = reason
+        pending.save()
+        
+        # Delete the user account
+        if pending.created_user:
+            pending.created_user.delete()
+        
+        messages.warning(request, f'{pending.first_name} {pending.last_name} has been rejected.')
+        return redirect('admin_dashboard')
+    
+    return JsonResponse({'error': 'Invalid method'}, status=405)
+
+@login_required
+def manage_users(request):
+    """Admin user management - change roles, deactivate users"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'admin':
+        messages.error(request, 'Permission denied.')
+        return redirect('dashboard')
+    
+    pharmacy = request.user.profile.pharmacy
+    
+    if request.method == 'POST':
+        user_id = request.POST.get('user_id')
+        action = request.POST.get('action')
+        
+        target_user = get_object_or_404(User, id=user_id, profile__pharmacy=pharmacy)
+        
+        # Prevent admin from deactivating themselves
+        if target_user == request.user:
+            messages.error(request, 'You cannot modify your own account here.')
+            return redirect('manage_users')
+        
+        if action == 'change_role':
+            new_role = request.POST.get('role')
+            if new_role in ['admin', 'pharmacist', 'technician']:
+                target_user.profile.role = new_role
+                target_user.profile.save()
+                messages.success(request, f'Role updated to {new_role}.')
+        
+        elif action == 'deactivate':
+            target_user.is_active = False
+            target_user.save()
+            messages.warning(request, f'{target_user.get_full_name()} has been deactivated.')
+        
+        elif action == 'activate':
+            target_user.is_active = True
+            target_user.save()
+            messages.success(request, f'{target_user.get_full_name()} has been activated.')
+        
+        return redirect('manage_users')
+    
+    users = User.objects.filter(
+        profile__pharmacy=pharmacy,
+        profile__is_approved=True
+    ).select_related('profile').exclude(id=request.user.id)
+    
+    return render(request, 'accounts/manage_users.html', {'users': users})
+
+
+@login_required
+def pharmacist_dashboard(request):
+    """Pharmacist dashboard"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role not in ['admin', 'pharmacist']:
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('dashboard')
+    
+    # Get pharmacy data
+    pharmacy = request.user.profile.pharmacy
+    
+    # Get statistics for pharmacist
+    from prescriptions.models import Prescription
+    from inventory.models import Batch, StockAlert
+    from sales.models import Sale
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    context = {
+        'pending_prescriptions': Prescription.objects.filter(
+            pharmacy=pharmacy, 
+            status='pending'
+        ).count(),
+        'verified_prescriptions': Prescription.objects.filter(
+            pharmacy=pharmacy, 
+            status='verified'
+        ).count(),
+        'low_stock_alerts': StockAlert.objects.filter(
+            batch__pharmacy=pharmacy,
+            alert_type='low_stock', 
+            is_resolved=False
+        ).count(),
+        'today_sales': Sale.objects.filter(
+            pharmacy=pharmacy,
+            created_at__date=timezone.now().date()
+        ).count(),
+    }
+    return render(request, 'accounts/pharmacist_dashboard.html', context)
+
+
+@login_required
+def technician_dashboard(request):
+    """Technician dashboard"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role not in ['admin', 'pharmacist', 'technician']:
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('dashboard')
+    
+    # Get pharmacy data
+    pharmacy = request.user.profile.pharmacy
+    
+    # Get statistics for technician
+    from inventory.models import Drug, Batch
+    from patients.models import Patient
+    
+    context = {
+        'total_drugs': Drug.objects.filter(pharmacy=pharmacy).count(),
+        'total_batches': Batch.objects.filter(pharmacy=pharmacy).count(),
+        'total_patients': Patient.objects.filter(pharmacy=pharmacy).count(),
+        'expiring_batches': Batch.objects.filter(
+            pharmacy=pharmacy,
+            expiry_date__lte=timezone.now().date() + timedelta(days=30),
+            quantity__gt=0
+        ).count(),
+    }
+    return render(request, 'accounts/technician_dashboard.html', context)
+
+
+
+
+def dashboard_router(request):
+    """Route users to their appropriate dashboard based on role"""
+    if not request.user.is_authenticated:
+        return redirect('accounts:login')
+    
+    if not hasattr(request.user, 'profile'):
+        return redirect('accounts:login')
+    
+    role = request.user.profile.role
+    
+    if role == 'admin':
+        return redirect('accounts:admin_dashboard')
+    elif role == 'pharmacist':
+        return redirect('accounts:pharmacist_dashboard')
+    elif role == 'technician':
+        return redirect('accounts:technician_dashboard')
+    else:
+        # Fallback for users without role (pending approval)
+        return redirect('accounts:login')
+
 
 def password_reset_request(request):
     """Request password reset"""
@@ -163,7 +543,7 @@ def password_reset_request(request):
             except User.DoesNotExist:
                 # Don't reveal that user doesn't exist
                 messages.success(request, 'If an account exists with this email, you will receive a password reset link.')
-            return redirect('login')
+            return redirect('accounts:login')
     else:
         form = PasswordResetRequestForm()
     
@@ -192,7 +572,7 @@ def password_reset_confirm(request, token):
             reset_token.save()
             
             messages.success(request, 'Password reset successful! You can now log in.')
-            return redirect('login')
+            return redirect('accounts:login')
     else:
         form = SetPasswordForm()
     
@@ -677,3 +1057,79 @@ def landing_page(request):
     }
     
     return render(request, 'landing/landing_page.html', context)
+
+
+
+from django.contrib.auth.decorators import user_passes_test
+from django.shortcuts import redirect
+from django.contrib import messages
+
+def admin_required(view_func):
+    """Allow access only to admins"""
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('accounts:login')
+        
+        if not hasattr(request.user, 'profile'):
+            messages.error(request, 'Account profile not found.')
+            return redirect('dashboard')
+        
+        if request.user.profile.role != 'admin':
+            messages.error(request, 'You do not have permission to access this page.')
+            return redirect('dashboard')
+        
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+def pharmacist_required(view_func):
+    """Allow access to pharmacists and admins"""
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('accounts:login')
+        
+        if not hasattr(request.user, 'profile'):
+            messages.error(request, 'Account profile not found.')
+            return redirect('dashboard')
+        
+        if request.user.profile.role not in ['admin', 'pharmacist']:
+            messages.error(request, 'You do not have permission to access this page.')
+            return redirect('dashboard')
+        
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+def technician_required(view_func):
+    """Allow access to technicians, pharmacists, and admins"""
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('accounts:login')
+        
+        if not hasattr(request.user, 'profile'):
+            messages.error(request, 'Account profile not found.')
+            return redirect('dashboard')
+        
+        if request.user.profile.role not in ['admin', 'pharmacist', 'technician']:
+            messages.error(request, 'You do not have permission to access this page.')
+            return redirect('dashboard')
+        
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+def role_required(allowed_roles):
+    """Generic decorator for multiple allowed roles"""
+    def decorator(view_func):
+        def wrapper(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                return redirect('accounts:login')
+            
+            if not hasattr(request.user, 'profile'):
+                messages.error(request, 'Account profile not found.')
+                return redirect('dashboard')
+            
+            if request.user.profile.role not in allowed_roles:
+                messages.error(request, 'You do not have permission to access this page.')
+                return redirect('dashboard')
+            
+            return view_func(request, *args, **kwargs)
+        return wrapper
+    return decorator

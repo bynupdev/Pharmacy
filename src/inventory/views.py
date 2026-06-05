@@ -7,6 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 from .models import Drug, Batch, Supplier, StockAlert
 from .forms import DrugForm, BatchForm, SupplierForm
+from accounts.decorators import admin_required, pharmacist_required, technician_required
 
 @login_required
 def inventory_list(request):
@@ -70,6 +71,7 @@ def inventory_detail(request, pk):
     return render(request, 'inventory/detail.html', context)
 
 @login_required
+@technician_required
 def inventory_add(request):
     """Add new drug"""
     if request.method == 'POST':
@@ -84,6 +86,7 @@ def inventory_add(request):
     return render(request, 'inventory/add_edit.html', {'form': form, 'edit_mode': False})
 
 @login_required
+@technician_required
 def inventory_edit(request, pk):
     """Edit drug details"""
     drug = get_object_or_404(Drug, pk=pk)
@@ -103,6 +106,7 @@ def inventory_edit(request, pk):
     })
 
 @login_required
+@admin_required
 def inventory_delete(request, pk):
     """Delete drug"""
     drug = get_object_or_404(Drug, pk=pk)
@@ -113,6 +117,7 @@ def inventory_delete(request, pk):
     return render(request, 'inventory/confirm_delete.html', {'drug': drug})
 
 @login_required
+@technician_required
 def add_batch(request, pk):
     """Add new batch for a drug"""
     drug = get_object_or_404(Drug, pk=pk)

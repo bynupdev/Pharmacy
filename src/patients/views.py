@@ -4,6 +4,8 @@ from django.contrib import messages
 from django.db.models import Q, Count
 from django.http import JsonResponse
 from django.core.paginator import Paginator
+
+from accounts.views import admin_required, technician_required
 from .models import Patient, Allergy
 from prescriptions.models import Prescription
 from .forms import PatientForm, AllergyForm
@@ -54,6 +56,7 @@ def patient_detail(request, pk):
     return render(request, 'patients/detail.html', context)
 
 @login_required
+@technician_required
 def patient_add(request):
     """Add new patient"""
     if request.method == 'POST':
@@ -70,6 +73,7 @@ def patient_add(request):
     return render(request, 'patients/add_edit.html', {'form': form, 'edit_mode': False})
 
 @login_required
+@technician_required
 def patient_edit(request, pk):
     """Edit patient details"""
     patient = get_object_or_404(Patient, pk=pk)
@@ -89,6 +93,7 @@ def patient_edit(request, pk):
     })
 
 @login_required
+@admin_required
 def patient_delete(request, pk):
     """Delete patient"""
     patient = get_object_or_404(Patient, pk=pk)

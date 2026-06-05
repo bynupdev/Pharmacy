@@ -19,7 +19,7 @@
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <a style="text-decoration: none; color: #2c9a9e;" href="{%url 'accounts:landing_page'%}"><h3><i class="fas fa-pills"></i> PharmHubAI</h3></a>
+            <a style="text-decoration: none; color: #2c9a9e;" href="{%url 'accounts:home'%}"><h3><i class="fas fa-pills"></i> PharmHubAI</h3></a>
             <p class="text-light">Welcome, {{ user.get_full_name|default:user.username }}</p>
         </div>
         
@@ -49,11 +49,14 @@
                     <i class="fas fa-cash-register"></i> Point of Sale
                 </a>
             </li>
+            {% if user.profile.role == 'admin' or user.profile.role == 'pharmacist' %}
             <li class="nav-item">
                 <a class="nav-link {% if '/reports' in request.path %}active{% endif %}" href="/reports/">
                     <i class="fas fa-chart-bar"></i> Reports
                 </a>
             </li>
+            {% endif %}
+            
             <li class="nav-item mt-4">
                 <a class="nav-link text-light" href="/logout/">
                     <i class="fas fa-sign-out-alt"></i> Logout

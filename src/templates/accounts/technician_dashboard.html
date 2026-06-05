@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Technician Dashboard - Pharmacy Management System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-info text-white mb-4">
+                <div class="card-body">
+                    <h4 class="mb-0"><i class="fas fa-tools"></i> Technician Dashboard</h4>
+                    <small>Welcome, {{ user.get_full_name }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Total Drugs</h5>
+                    <h2 class="mb-0">{{ total_drugs }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Stock Batches</h5>
+                    <h2 class="mb-0">{{ total_batches }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Total Patients</h5>
+                    <h2 class="mb-0">{{ total_patients }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <h5 class="card-title">Expiring Soon</h5>
+                    <h2 class="mb-0">{{ expiring_batches }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'inventory:list' %}" class="btn btn-primary w-100 mb-2">
+                        <i class="fas fa-boxes"></i> Manage Inventory
+                    </a>
+                    <a href="{% url 'patients:list' %}" class="btn btn-success w-100 mb-2">
+                        <i class="fas fa-users"></i> View Patients
+                    </a>
+                    <a href="{% url 'inventory:add' %}" class="btn btn-info w-100">
+                        <i class="fas fa-plus"></i> Add New Drug
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted text-center">Recent inventory and patient activity will appear here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -9,6 +9,7 @@ import json
 from inventory.models import Drug, Batch, StockAlert
 from sales.models import Sale, SaleItem
 from prescriptions.models import Prescription, InteractionLog
+from accounts.decorators import pharmacist_required
 
 # Try to import pandas, but provide fallback if not available
 try:
@@ -21,7 +22,8 @@ except ImportError:
     logger = logging.getLogger(__name__)
     logger.warning("Pandas not installed. Using basic reporting.")
 
-# @login_required
+@login_required
+@pharmacist_required
 def report_dashboard(request):
     """Main reports dashboard"""
     context = {}
@@ -60,6 +62,7 @@ def report_dashboard(request):
     return render(request, 'reports/dashboard.html', context)
 
 @login_required
+@pharmacist_required
 def inventory_report(request):
     """Inventory valuation and status report"""
     # Get all drugs with their batches
@@ -100,6 +103,7 @@ def inventory_report(request):
     return render(request, 'reports/inventory.html', context)
 
 @login_required
+@pharmacist_required
 def sales_report(request):
     """Sales analysis report"""
     # Get date range

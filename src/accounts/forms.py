@@ -3,38 +3,119 @@ from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, PasswordChangeForm
 from django.core.validators import RegexValidator, EmailValidator, MinLengthValidator
 from django.utils import timezone
-from .models import UserProfile
+from .models import UserProfile, Pharmacy, PendingUserRequest
 import re
+
 
 class LoginForm(AuthenticationForm):
     username = forms.CharField(
-        max_length=150,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
             'placeholder': 'Username or Email',
-            'autofocus': True,
-            'autocomplete': 'username'
+            'autofocus': True
         })
     )
     password = forms.CharField(
         widget=forms.PasswordInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Password',
-            'autocomplete': 'current-password'
+            'placeholder': 'Password'
+        })
+    )
+
+class PharmacyRegistrationForm(UserCreationForm):
+    pharmacy_name = forms.CharField(
+        max_length=200,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Pharmacy Name'
+        })
+    )
+    first_name = forms.CharField(
+        max_length=30,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'First Name'
+        })
+    )
+    last_name = forms.CharField(
+        max_length=30,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Last Name'
+        })
+    )
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Email Address'
+        })
+    )
+    phone_number = forms.CharField(
+        max_length=15,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Phone Number (optional)'
         })
     )
     
-    def clean_username(self):
-        username = self.cleaned_data.get('username')
-        # Allow login with email or username
-        if '@' in username:
-            try:
-                user = User.objects.get(email__iexact=username)
-                return user.username
-            except User.DoesNotExist:
-                pass
-        return username
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email', 'password1', 'password2']
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError('This email is already registered. Please login instead.')
+        return email
+    
+    def clean_pharmacy_name(self):
+        pharmacy_name = self.cleaned_data.get('pharmacy_name')
+        if not pharmacy_name:
+            raise forms.ValidationError('Please enter a pharmacy name')
+        return pharmacy_name.strip()
+    
 
+class AdminApprovalForm(forms.Form):
+    role = forms.ChoiceField(
+        choices=UserProfile.USER_ROLES,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    approve = forms.BooleanField(required=False, widget=forms.HiddenInput)
+    reject = forms.BooleanField(required=False, widget=forms.HiddenInput)
+    rejection_reason = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Reason for rejection (optional)'
+        })
+    )
+
+
+class UserRoleUpdateForm(forms.ModelForm):
+    class Meta:
+        model = UserProfile
+        fields = ['role']
+        widgets = {
+            'role': forms.Select(attrs={'class': 'form-select'})
+        }
+
+class UserEditForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'is_active']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        }
+        
 class UserRegistrationForm(UserCreationForm):
     pharmacy_name = forms.CharField(max_length=200, required=True, label='Pharmacy Name')
 

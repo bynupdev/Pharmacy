@@ -1,83 +1,121 @@
 #!/usr/bin/env python
 """
-Import JSON data to Neon database
-Run AFTER switching to Neon and running migrations
+Simple script to import SQLite data to Neon PostgreSQL
+Run: python import_to_neon.py
 """
 
 import os
 import sys
-import json
-import django
+import sqlite3
+import psycopg2
+from psycopg2.extras import execute_values
+from dotenv import load_dotenv
 
-# Setup Django
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'src.settings')
-django.setup()
+load_dotenv()
 
-from django.core import serializers
-from django.contrib.auth.models import User
-from accounts.models import UserProfile, Pharmacy
-from inventory.models import Drug, Batch, Supplier
-from patients.models import Patient
+# SQLite database path
+SQLITE_DB = 'db.sqlite3'
 
-print("=" * 70)
-print("IMPORTING DATA TO NEON DATABASE")
-print("=" * 70)
+# Neon connection string
+NEON_URL = os.getenv('DATABASE_URL')
 
-# Load the exported data
-with open('pharmacy_data_export.json', 'r') as f:
-    export_data = json.load(f)
+print("=" * 60)
+print("IMPORTING SQLITE DATA TO NEON")
+print("=" * 60)
 
-# Import in correct order (dependencies first)
-print("\n[1/6] Importing Users...")
-for obj in export_data['users']:
-    user = User(**obj['fields'])
-    user.pk = obj['pk']
-    user.save()
-print(f"   Imported {len(export_data['users'])} users")
+# Connect to SQLite
+print("\n[1/4] Connecting to SQLite...")
+sqlite_conn = sqlite3.connect(SQLITE_DB)
+sqlite_conn.row_factory = sqlite3.Row
+print("   OK")
 
-print("\n[2/6] Importing Pharmacies...")
-for obj in export_data['pharmacies']:
-    pharmacy = Pharmacy(**obj['fields'])
-    pharmacy.pk = obj['pk']
-    pharmacy.save()
-print(f"   Imported {len(export_data['pharmacies'])} pharmacies")
+# Connect to Neon
+print("\n[2/4] Connecting to Neon...")
+try:
+    pg_conn = psycopg2.connect(NEON_URL)
+    pg_conn.autocommit = False
+    pg_cursor = pg_conn.cursor()
+    print("   OK")
+except Exception as e:
+    print(f"   ERROR: {e}")
+    print("\nMake sure your DATABASE_URL in .env is correct")
+    sys.exit(1)
 
-print("\n[3/6] Importing User Profiles...")
-for obj in export_data['profiles']:
-    profile = UserProfile(**obj['fields'])
-    profile.pk = obj['pk']
-    profile.save()
-print(f"   Imported {len(export_data['profiles'])} profiles")
+# Tables to import (in correct order for foreign keys)
+tables = [
+    'accounts_pharmacy',
+    'auth_user',
+    'accounts_userprofile',
+    'inventory_supplier',
+    'inventory_drug',
+    'inventory_batch',
+    'patients_patient',
+    'prescriptions_prescription',
+    'prescriptions_prescriptionitem',
+    'sales_sale',
+    'sales_saleitem',
+]
 
-print("\n[4/6] Importing Suppliers...")
-for obj in export_data['suppliers']:
-    supplier = Supplier(**obj['fields'])
-    supplier.pk = obj['pk']
-    supplier.save()
-print(f"   Imported {len(export_data['suppliers'])} suppliers")
+print("\n[3/4] Importing data...")
 
-print("\n[5/6] Importing Drugs...")
-for obj in export_data['drugs']:
-    drug = Drug(**obj['fields'])
-    drug.pk = obj['pk']
-    drug.save()
-print(f"   Imported {len(export_data['drugs'])} drugs")
+for table in tables:
+    try:
+        # Get data from SQLite
+        cursor = sqlite_conn.execute(f"SELECT * FROM {table}")
+        rows = cursor.fetchall()
+        
+        if not rows:
+            print(f"   SKIP: {table} (no data)")
+            continue
+        
+        # Get column names
+        columns = [description[0] for description in cursor.description]
+        
+        # Clear existing data in Neon (optional - be careful!)
+        pg_cursor.execute(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE")
+        
+        # Insert data
+        placeholders = ','.join(['%s'] * len(columns))
+        insert_sql = f"INSERT INTO {table} ({','.join(columns)}) VALUES ({placeholders})"
+        
+        for row in rows:
+            pg_cursor.execute(insert_sql, tuple(row))
+        
+        pg_conn.commit()
+        print(f"   OK: {table} ({len(rows)} rows)")
+        
+    except Exception as e:
+        print(f"   ERROR: {table} - {str(e)[:100]}")
+        pg_conn.rollback()
 
-print("\n[6/6] Importing Batches...")
-for obj in export_data['batches']:
-    batch = Batch(**obj['fields'])
-    batch.pk = obj['pk']
-    batch.save()
-print(f"   Imported {len(export_data['batches'])} batches")
+# Reset sequences
+print("\n[4/4] Resetting sequences...")
+try:
+    pg_cursor.execute("""
+        SELECT 'SELECT SETVAL(' || quote_literal(quote_ident(PGT.schemaname) || '.' || quote_ident(PGT.tablename)) || 
+               ', COALESCE(MAX(' || quote_ident(C.column_name) || '), 1) ) FROM ' || quote_ident(PGT.schemaname) || '.' || quote_ident(PGT.tablename) || ';'
+        FROM pg_tables PGT
+        JOIN information_schema.columns C
+        ON C.table_name = PGT.tablename AND C.column_name = 'id'
+        WHERE PGT.schemaname = 'public'
+    """)
+    sequence_queries = pg_cursor.fetchall()
+    for query in sequence_queries:
+        try:
+            pg_cursor.execute(query[0])
+        except:
+            pass
+    pg_conn.commit()
+    print("   OK")
+except Exception as e:
+    print(f"   Warning: {e}")
 
-print("\n[7/7] Importing Patients...")
-for obj in export_data['patients']:
-    patient = Patient(**obj['fields'])
-    patient.pk = obj['pk']
-    patient.save()
-print(f"   Imported {len(export_data['patients'])} patients")
+# Close connections
+sqlite_conn.close()
+pg_cursor.close()
+pg_conn.close()
 
-print("\n" + "=" * 70)
+print("\n" + "=" * 60)
 print("IMPORT COMPLETE!")
-print("=" * 70)
+print("=" * 60)
+print("\nYour data is now in Neon PostgreSQL")

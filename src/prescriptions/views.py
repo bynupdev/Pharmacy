@@ -13,6 +13,7 @@ from .models import Prescription, PrescriptionItem, InteractionLog
 from patients.models import Patient
 from inventory.models import Drug, Batch
 from .forms import PrescriptionForm, PrescriptionItemForm, PrescriptionVerifyForm
+from accounts.decorators import admin_required, pharmacist_required, technician_required
 import re
 
 @login_required
@@ -92,6 +93,7 @@ def check_fda_dosage_api(request):
     
 
 @login_required
+@technician_required
 def prescription_create(request):
     """Create new prescription with FDA dosage checking and AI interaction detection"""
     if request.method == 'POST':
@@ -310,6 +312,7 @@ def prescription_detail(request, pk):
 
 
 @login_required
+@technician_required
 def prescription_edit(request, pk):
     """Edit prescription"""
     prescription = get_object_or_404(Prescription, pk=pk)
@@ -338,6 +341,7 @@ def prescription_edit(request, pk):
     return render(request, 'prescriptions/edit.html', context)
 
 @login_required
+@pharmacist_required
 def prescription_verify(request, pk):
     """Verify prescription (pharmacist)"""
     prescription = get_object_or_404(Prescription, pk=pk)
@@ -368,6 +372,7 @@ def prescription_verify(request, pk):
 
 
 @login_required
+@pharmacist_required
 def prescription_dispense(request, pk):
     """Dispense prescription"""
     prescription = get_object_or_404(Prescription, pk=pk)

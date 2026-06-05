@@ -13,6 +13,7 @@ from .models import Sale, SaleItem, Receipt
 from inventory.models import Drug, Batch
 from prescriptions.models import Prescription
 from .forms import SaleForm, SaleItemForm
+from accounts.decorators import admin_required, pharmacist_required, technician_required
 
 @login_required
 def pos(request):
