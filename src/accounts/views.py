@@ -56,63 +56,141 @@ from django.contrib.auth.hashers import check_password
 #     return render(request, 'accounts/login.html', {'form': form})
 
 
+# def login_view(request):
+#     """Enhanced login with account state checks"""
+#     if request.user.is_authenticated:
+#         return redirect('dashboard')
+    
+#     if request.method == 'POST':
+#         form = LoginForm(request, data=request.POST)
+#         if form.is_valid():
+#             username = form.cleaned_data.get('username')
+#             password = form.cleaned_data.get('password')
+            
+#             user = authenticate(username=username, password=password)
+            
+#             if user is not None:
+#                 # Check if user has a profile
+#                 if not hasattr(user, 'profile'):
+#                     messages.error(request, 'Account setup incomplete. Please contact support.')
+#                     return redirect('accounts:accounts:login')
+                
+#                 profile = user.profile
+                
+#                 # Check account status
+#                 if not user.is_active:
+#                     # Check if there's a pending request
+#                     pending = PendingUserRequest.objects.filter(created_user=user, status='pending').first()
+#                     if pending:
+#                         messages.warning(request, f'Your account is pending approval from {pending.pharmacy.name} admin. Please wait for approval.')
+#                     else:
+#                         messages.error(request, 'Your account has been deactivated. Contact your pharmacy admin.')
+#                     return redirect('accounts:login')
+                
+#                 if not profile.is_approved:
+#                     messages.warning(request, 'Your account is waiting for admin approval. You will be notified once approved.')
+#                     return redirect('accounts:login')
+                
+#                 if not profile.pharmacy or not profile.pharmacy.is_active:
+#                     messages.error(request, 'Your pharmacy is inactive. Contact support.')
+#                     return redirect('accounts:login')
+                
+#                 # Login successful
+#                 login(request, user)
+#                 messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
+                
+#                 # Redirect based on role
+#                 if profile.role == 'admin':
+#                     return redirect('accounts:admin_dashboard')
+#                 elif profile.role == 'pharmacist':
+#                     return redirect('accounts:pharmacist_dashboard')
+#                 else:
+#                     return redirect('accounts:technician_dashboard')
+#             else:
+#                 messages.error(request, 'Invalid username or password.')
+#         else:
+#             messages.error(request, 'Please correct the errors below.')
+#     else:
+#         form = LoginForm()
+    
+#     return render(request, 'accounts/login.html', {'form': form})
+
+
+
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import login, authenticate
+from django.contrib.auth.models import User
+from django.contrib import messages
+from django.shortcuts import render, redirect
+from .models import PendingUserRequest
+
 def login_view(request):
     """Enhanced login with account state checks"""
     if request.user.is_authenticated:
         return redirect('dashboard')
     
     if request.method == 'POST':
-        form = LoginForm(request, data=request.POST)
-        if form.is_valid():
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password')
+        # Get credentials directly from POST, not through form validation
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        
+        print(f"Username: {username}")
+        print(f"Password provided: {'Yes' if password else 'No'}")
+        
+        # FIRST: Check if user exists
+        try:
+            existing_user = User.objects.get(username=username)
+            print(f"User found: {existing_user.username}")
+            print(f"is_active: {existing_user.is_active}")
             
-            user = authenticate(username=username, password=password)
+            if hasattr(existing_user, 'profile'):
+                print(f"Profile exists, is_approved: {existing_user.profile.is_approved}")
+                print(f"Profile role: {existing_user.profile.role}")
+            
+            # Case 1: Account pending admin approval (inactive)
+            if not existing_user.is_active:
+                pending = PendingUserRequest.objects.filter(
+                    created_user=existing_user, 
+                    status='pending'
+                ).first()
+                if pending:
+                    messages.warning(request, f'Your account is pending approval from {pending.pharmacy.name} admin. Please wait.')
+                else:
+                    messages.warning(request, 'Your account is waiting for admin approval.')
+                return redirect('accounts:login')
+            
+            # Case 2: Profile exists but not approved
+            if hasattr(existing_user, 'profile') and not existing_user.profile.is_approved:
+                messages.warning(request, 'Your account is waiting for admin approval. You will be notified once approved.')
+                return redirect('accounts:login')
+            
+            # Case 3: Account is active and approved - now try to authenticate
+            user = authenticate(request, username=username, password=password)
             
             if user is not None:
-                # Check if user has a profile
-                if not hasattr(user, 'profile'):
-                    messages.error(request, 'Account setup incomplete. Please contact support.')
-                    return redirect('accounts:accounts:login')
-                
-                profile = user.profile
-                
-                # Check account status
-                if not user.is_active:
-                    # Check if there's a pending request
-                    pending = PendingUserRequest.objects.filter(created_user=user, status='pending').first()
-                    if pending:
-                        messages.warning(request, f'Your account is pending approval from {pending.pharmacy.name} admin. Please wait for approval.')
-                    else:
-                        messages.error(request, 'Your account has been deactivated. Contact your pharmacy admin.')
-                    return redirect('accounts:login')
-                
-                if not profile.is_approved:
-                    messages.warning(request, 'Your account is waiting for admin approval. You will be notified once approved.')
-                    return redirect('accounts:login')
-                
-                if not profile.pharmacy or not profile.pharmacy.is_active:
-                    messages.error(request, 'Your pharmacy is inactive. Contact support.')
-                    return redirect('accounts:login')
-                
                 # Login successful
                 login(request, user)
                 messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
                 
                 # Redirect based on role
-                if profile.role == 'admin':
+                if user.profile.role == 'admin':
                     return redirect('accounts:admin_dashboard')
-                elif profile.role == 'pharmacist':
+                elif user.profile.role == 'pharmacist':
                     return redirect('accounts:pharmacist_dashboard')
                 else:
                     return redirect('accounts:technician_dashboard')
             else:
-                messages.error(request, 'Invalid username or password.')
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        form = LoginForm()
-    
+                # Password is incorrect
+                messages.error(request, 'Invalid password. Please try again.')
+                return redirect('accounts:login')
+                
+        except User.DoesNotExist:
+            print(f"User '{username}' does not exist")
+            messages.error(request, 'Username does not exist. Please register first.')
+            return redirect('accounts:login')
+            
+    # GET request - show empty form
+    form = AuthenticationForm()
     return render(request, 'accounts/login.html', {'form': form})
 
 
@@ -201,7 +279,7 @@ def register_view(request):
                 
                 # Update the profile that the signal created
                 profile = user.profile
-                profile.role = None
+                role='technician'  # ← DEFAULT ROLE FOR PENDING EMPLOYEES
                 profile.phone_number = phone_number
                 profile.pharmacy = existing_pharmacy
                 profile.is_approved = False
@@ -317,39 +395,55 @@ def admin_dashboard(request):
     }
     return render(request, 'accounts/admin_dashboard.html', context)
 
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from .models import PendingUserRequest
+
 @login_required
 def approve_user(request, request_id):
     """Approve a pending user request"""
-    if not hasattr(request.user, 'profile') or request.user.profile.role != 'admin':
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+    # Get the pending request
+    pending = get_object_or_404(PendingUserRequest, id=request_id)
     
-    pending = get_object_or_404(PendingUserRequest, id=request_id, pharmacy=request.user.profile.pharmacy)
+    # Check if the current user is admin of the same pharmacy
+    if request.user.profile.role != 'admin' or request.user.profile.pharmacy != pending.pharmacy:
+        messages.error(request, 'You do not have permission to approve this user.')
+        return redirect('admin_dashboard')
     
     if request.method == 'POST':
         role = request.POST.get('role', 'technician')
         
         if role not in ['pharmacist', 'technician']:
-            return JsonResponse({'error': 'Invalid role'}, status=400)
+            messages.error(request, 'Invalid role selected.')
+            return redirect('admin_dashboard')
         
-        # Update user and profile
+        # Get the user associated with this pending request
         user = pending.created_user
+        
         if user:
+            # Activate the user
             user.is_active = True
             user.save()
             
+            # Update profile
             profile = user.profile
             profile.role = role
             profile.is_approved = True
             profile.save()
+            
+            # Update pending request status
+            pending.status = 'approved'
+            pending.save()
+            
+            messages.success(request, f'{user.get_full_name()} has been approved as {role}.')
+        else:
+            messages.error(request, 'User not found.')
         
-        # Update pending request
-        pending.status = 'approved'
-        pending.save()
-        
-        messages.success(request, f'{pending.first_name} {pending.last_name} has been approved as {role}.')
-        return redirect('admin_dashboard')
+        return redirect('accounts:admin_dashboard')
     
-    return JsonResponse({'error': 'Invalid method'}, status=405)
+    # GET request - show confirmation page
+    return render(request, 'accounts/approve_user.html', {'pending': pending})
 
 @login_required
 def reject_user(request, request_id):
@@ -394,7 +488,7 @@ def manage_users(request):
         # Prevent admin from deactivating themselves
         if target_user == request.user:
             messages.error(request, 'You cannot modify your own account here.')
-            return redirect('manage_users')
+            return redirect('accounts:manage_users')
         
         if action == 'change_role':
             new_role = request.POST.get('role')
@@ -413,7 +507,7 @@ def manage_users(request):
             target_user.save()
             messages.success(request, f'{target_user.get_full_name()} has been activated.')
         
-        return redirect('manage_users')
+        return redirect('accounts:manage_users')
     
     users = User.objects.filter(
         profile__pharmacy=pharmacy,
@@ -837,32 +931,62 @@ def api_check_email(request):
 
 @login_required
 def manage_users(request):
-    """Pharmacy admin can add users to their pharmacy"""
-    if request.user.profile.role != 'admin':
-        messages.error(request, 'Only pharmacy admins can manage users.')
+    """Admin user management - change roles, deactivate users"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'admin':
+        messages.error(request, 'Permission denied.')
         return redirect('dashboard')
     
-    if not request.pharmacy:
-        messages.error(request, 'No pharmacy associated with your account.')
-        return redirect('dashboard')
+    pharmacy = request.user.profile.pharmacy
     
     if request.method == 'POST':
-        email = request.POST.get('email')
-        role = request.POST.get('role')
+        user_id = request.POST.get('user_id')
+        action = request.POST.get('action')
         
+        # IMPORTANT: Only allow managing users from the SAME pharmacy
         try:
-            user = User.objects.get(email=email)
-            # Add user to this pharmacy
-            user.profile.pharmacy = request.pharmacy
-            user.profile.role = role
-            user.profile.save()
-            messages.success(request, f'User {user.email} added to {request.pharmacy.name}')
+            target_user = User.objects.get(
+                id=user_id, 
+                profile__pharmacy=pharmacy
+            )
         except User.DoesNotExist:
-            messages.error(request, 'User not found. They need to register first.')
+            messages.error(request, 'User not found in your pharmacy.')
+            return redirect('accounts:manage_users')
         
-        return redirect('manage_users')
+        # Prevent admin from modifying themselves
+        if target_user == request.user:
+            messages.error(request, 'You cannot modify your own account here.')
+            return redirect('accounts:manage_users')
+        
+        if action == 'change_role':
+            new_role = request.POST.get('role')
+            if new_role in ['admin', 'pharmacist', 'technician']:
+                target_user.profile.role = new_role
+                target_user.profile.save()
+                messages.success(request, f'{target_user.get_full_name()} role updated to {new_role}.')
+            else:
+                messages.error(request, 'Invalid role selected.')
+        
+        elif action == 'deactivate':
+            target_user.is_active = False
+            target_user.save()
+            messages.warning(request, f'{target_user.get_full_name()} has been deactivated.')
+        
+        elif action == 'activate':
+            target_user.is_active = True
+            target_user.save()
+            messages.success(request, f'{target_user.get_full_name()} has been activated.')
+        
+        else:
+            messages.error(request, 'Invalid action.')
+        
+        return redirect('accounts:manage_users')
     
-    users = User.objects.filter(profile__pharmacy=request.pharmacy)
+    # GET request - show all users in this pharmacy (excluding the current admin)
+    users = User.objects.filter(
+        profile__pharmacy=pharmacy,
+        profile__is_approved=True
+    ).select_related('profile').exclude(id=request.user.id)
+    
     return render(request, 'accounts/manage_users.html', {'users': users})
 
 

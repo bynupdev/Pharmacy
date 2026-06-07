@@ -8,18 +8,16 @@ class PatientForm(forms.ModelForm):
         model = Patient
         fields = [
             'first_name', 'last_name', 'date_of_birth', 'gender',
-            'phone', 'email', 'address', 'blood_type',
-            'allergies', 'chronic_conditions', 'current_medications',
-            'emergency_contact_name', 'emergency_contact_phone'
+            'phone', 'email', 'address', 'allergies'
         ]
         widgets = {
             'first_name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'First Name'
+                'placeholder': 'First name'
             }),
             'last_name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Last Name'
+                'placeholder': 'Last name'
             }),
             'date_of_birth': forms.DateInput(attrs={
                 'class': 'form-control',
@@ -31,69 +29,34 @@ class PatientForm(forms.ModelForm):
             }),
             'phone': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Phone Number',
-                'data-mask': '(000) 000-0000'
+                'placeholder': 'Phone number'
             }),
             'email': forms.EmailInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Email Address'
+                'placeholder': 'Email (optional)'
             }),
             'address': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Street Address, City, State, ZIP'
-            }),
-            'blood_type': forms.Select(attrs={
-                'class': 'form-select'
-            }),
-            'allergies': forms.Textarea(attrs={
-                'class': 'form-control',
                 'rows': 2,
-                'placeholder': 'List allergies separated by commas'
+                'placeholder': 'Address (optional)'
             }),
-            'chronic_conditions': forms.Textarea(attrs={
+            'allergies': forms.TextInput(attrs={
                 'class': 'form-control',
-                'rows': 2,
-                'placeholder': 'List chronic conditions'
-            }),
-            'current_medications': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 2,
-                'placeholder': 'List current medications'
-            }),
-            'emergency_contact_name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Emergency Contact Name'
-            }),
-            'emergency_contact_phone': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Emergency Contact Phone'
+                'placeholder': 'List allergies (separate with commas)'
             }),
         }
+        labels = {
+            'date_of_birth': 'Date of birth',
+            'phone': 'Phone number',
+        }
+        required = ['first_name', 'last_name', 'date_of_birth', 'gender', 'phone']
     
-    def clean_date_of_birth(self):
-        dob = self.cleaned_data.get('date_of_birth')
-        if dob:
-            age = (date.today() - dob).days / 365.25
-            if age > 150:
-                raise forms.ValidationError("Please enter a valid date of birth")
-            if age < 0:
-                raise forms.ValidationError("Date of birth cannot be in the future")
-        return dob
-    
-    def clean_phone(self):
-        phone = self.cleaned_data.get('phone')
-        # Remove non-numeric characters
-        phone_numeric = ''.join(filter(str.isdigit, phone))
-        if len(phone_numeric) < 10:
-            raise forms.ValidationError("Please enter a valid phone number")
-        return phone
-    
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if email and Patient.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
-            raise forms.ValidationError("A patient with this email already exists")
-        return email
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make email and address optional
+        self.fields['email'].required = False
+        self.fields['address'].required = False
+        self.fields['allergies'].required = False
 
 class AllergyForm(forms.ModelForm):
     class Meta:

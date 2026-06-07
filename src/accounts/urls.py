@@ -60,9 +60,9 @@ urlpatterns = [
     
     # Admin dashboards and management
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
-    path('approve/<int:request_id>/', views.approve_user, name='approve_user'),
-    path('reject/<int:request_id>/', views.reject_user, name='reject_user'),
-    path('manage-users/', views.manage_users, name='manage_users'),
+    path('accounts/approve/<int:request_id>/', views.approve_user, name='approve_user'),
+    path('accounts/reject/<int:request_id>/', views.reject_user, name='reject_user'),
+    path('accounts/manage-users/', views.manage_users, name='manage_users'),
     
     # Role dashboards
     path('pharmacist-dashboard/', views.pharmacist_dashboard, name='pharmacist_dashboard'),

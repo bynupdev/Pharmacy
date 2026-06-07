@@ -58,19 +58,27 @@ def patient_detail(request, pk):
 @login_required
 @technician_required
 def patient_add(request):
-    """Add new patient"""
+    """Add new patient - simplified"""
     if request.method == 'POST':
         form = PatientForm(request.POST)
         if form.is_valid():
             patient = form.save(commit=False)
             patient.created_by = request.user
+            patient.pharmacy = request.pharmacy
             patient.save()
-            messages.success(request, f'Patient {patient.full_name} added successfully.')
+            messages.success(request, f'{patient.full_name} added successfully.')
             return redirect('patients:detail', pk=patient.pk)
+        else:
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = PatientForm()
     
-    return render(request, 'patients/add_edit.html', {'form': form, 'edit_mode': False})
+    return render(request, 'patients/add_edit.html', {
+        'form': form,
+        'edit_mode': False,
+        'title': 'Add New Patient'
+    })
+
 
 @login_required
 @technician_required

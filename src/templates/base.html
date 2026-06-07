@@ -20,7 +20,7 @@
     <div class="sidebar">
         <div class="sidebar-header">
             <a style="text-decoration: none; color: #2c9a9e;" href="{%url 'accounts:home'%}"><h3><i class="fas fa-pills"></i> PharmHubAI</h3></a>
-            <p class="text-light">Welcome, {{ user.get_full_name|default:user.username }}</p>
+            <p class="text-light">Welcome, <a href="{%url 'accounts:home'%} " style="color: white;">{{ user.username }}</a></p>
         </div>
         
         <ul class="nav flex-column">
