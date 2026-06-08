@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -70,20 +72,30 @@ def inventory_detail(request, pk):
     }
     return render(request, 'inventory/detail.html', context)
 
+
 @login_required
 @technician_required
 def inventory_add(request):
-    """Add new drug"""
+    """Add new drug - simplified"""
     if request.method == 'POST':
         form = DrugForm(request.POST)
         if form.is_valid():
-            drug = form.save()
-            messages.success(request, f'Drug {drug.name} added successfully.')
-            return redirect('inventory:detail', pk=drug.pk)
+            drug = form.save(commit=False)
+            drug.pharmacy = request.pharmacy
+            drug.save()
+            messages.success(request, f'{drug.name} added successfully.')
+            return redirect('inventory:list')
+        else:
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = DrugForm()
     
-    return render(request, 'inventory/add_edit.html', {'form': form, 'edit_mode': False})
+    return render(request, 'inventory/add_edit.html', {
+        'form': form,
+        'title': 'Add New Drug',
+        'edit_mode': False
+    })
+
 
 @login_required
 @technician_required
@@ -116,36 +128,69 @@ def inventory_delete(request, pk):
         return redirect('inventory:list')
     return render(request, 'inventory/confirm_delete.html', {'drug': drug})
 
+
+
 @login_required
 @technician_required
 def add_batch(request, pk):
-    """Add new batch for a drug"""
-    drug = get_object_or_404(Drug, pk=pk)
+    """Add stock to existing drug"""
+    drug = get_object_or_404(Drug, pk=pk, pharmacy=request.pharmacy)
+    suppliers = Supplier.objects.filter(pharmacy=request.pharmacy)
     
     if request.method == 'POST':
-        form = BatchForm(request.POST)
-        if form.is_valid():
-            batch = form.save(commit=False)
-            batch.drug = drug
-            batch.save()
-            
-            # Check if expiry alert needed
-            if batch.days_until_expiry() <= 30 and batch.days_until_expiry() > 0:
-                StockAlert.objects.create(
-                    batch=batch,
-                    alert_type='expiry',
-                    message=f'Batch {batch.batch_number} of {drug.name} expires in {batch.days_until_expiry()} days'
-                )
-            
-            messages.success(request, f'Batch {batch.batch_number} added successfully.')
-            return redirect('inventory:detail', pk=drug.pk)
-    else:
-        form = BatchForm(initial={'drug': drug})
+        quantity = request.POST.get('quantity')
+        purchase_price = request.POST.get('purchase_price')
+        selling_price = request.POST.get('selling_price')
+        expiry_date = request.POST.get('expiry_date')
+        manufacture_date = request.POST.get('manufacture_date')
+        batch_number = request.POST.get('batch_number')
+        supplier_id = request.POST.get('supplier_id')
+        
+        # Validation
+        if not quantity or not purchase_price or not selling_price or not expiry_date:
+            messages.error(request, 'Quantity, purchase price, selling price, and expiry date are required.')
+            return redirect('inventory:add_batch', pk=pk)
+        
+        # Generate batch number if not provided
+        if not batch_number:
+            from datetime import datetime
+            batch_number = f"BATCH-{drug.id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        # Get supplier if selected
+        supplier = None
+        if supplier_id:
+            supplier = get_object_or_404(Supplier, id=supplier_id, pharmacy=request.pharmacy)
+        
+        # Set manufacture date to today if not provided
+        if not manufacture_date:
+            manufacture_date = timezone.now().date()
+        
+        # Check if batch number already exists
+        if Batch.objects.filter(batch_number=batch_number).exists():
+            messages.error(request, f'Batch number {batch_number} already exists.')
+            return redirect('inventory:add_batch', pk=pk)
+        
+        Batch.objects.create(
+            drug=drug,
+            batch_number=batch_number,
+            quantity=int(quantity),
+            purchase_price=Decimal(str(purchase_price)),
+            selling_price=Decimal(str(selling_price)),
+            manufacture_date=manufacture_date,
+            expiry_date=expiry_date,
+            supplier=supplier,
+            pharmacy=request.pharmacy
+        )
+        
+        messages.success(request, f'Added {quantity} units of {drug.name} to stock.')
+        return redirect('inventory:list')
     
     return render(request, 'inventory/add_batch.html', {
-        'form': form,
-        'drug': drug
+        'drug': drug,
+        'suppliers': suppliers,
+        'today': timezone.now().date()
     })
+
 
 @login_required
 def batch_list(request):
@@ -235,25 +280,38 @@ def resolve_alert(request, pk):
         return redirect('inventory:stock_alerts')
     return render(request, 'inventory/resolve_alert.html', {'alert': alert})
 
-@login_required
+
+
 def api_search_drugs(request):
-    """API endpoint for drug search"""
+    """API endpoint for drug search - formatted for Select2"""
     query = request.GET.get('q', '')
+    
     if len(query) < 2:
         return JsonResponse({'results': []})
     
+    # Search for drugs in the current pharmacy
     drugs = Drug.objects.filter(
-        Q(name__icontains=query) | Q(generic_name__icontains=query)
+        Q(name__icontains=query) | Q(generic_name__icontains=query),
+        pharmacy=request.pharmacy
     )[:10]
     
-    results = [{
-        'id': drug.id,
-        'name': drug.name,
-        'generic_name': drug.generic_name,
-        'strength': drug.strength,
-        'form': drug.form,
-        'rxcui': drug.rxcui
-    } for drug in drugs]
+    # Format for Select2 - needs 'id' and 'text' fields
+    results = []
+    for drug in drugs:
+        # Check if drug has stock
+        has_stock = drug.batches.filter(
+            quantity__gt=0, 
+            expiry_date__gt=timezone.now().date()
+        ).exists()
+        
+        results.append({
+            'id': drug.id,
+            'text': f"{drug.name} {drug.strength or ''} - {drug.generic_name or ''}",
+            'name': drug.name,
+            'generic_name': drug.generic_name,
+            'strength': drug.strength,
+            'has_stock': has_stock
+        })
     
     return JsonResponse({'results': results})
 

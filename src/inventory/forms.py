@@ -3,23 +3,21 @@ from django.utils import timezone
 from .models import Drug, Batch, Supplier, StockAlert
 from datetime import date
 
+from django import forms
+from .models import Drug
+
 class DrugForm(forms.ModelForm):
     class Meta:
         model = Drug
-        fields = ['name', 'generic_name', 'rxcui', 'form', 'strength', 
-                 'manufacturer', 'description', 'requires_prescription']
+        fields = ['name', 'generic_name', 'form', 'strength', 'manufacturer', 'requires_prescription']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Brand/Trade Name'
+                'placeholder': 'e.g., Amoxicillin'
             }),
             'generic_name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Generic Name'
-            }),
-            'rxcui': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'RxCUI (optional)'
+                'placeholder': 'e.g., Amoxicillin'
             }),
             'form': forms.Select(attrs={
                 'class': 'form-select'
@@ -30,29 +28,16 @@ class DrugForm(forms.ModelForm):
             }),
             'manufacturer': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Manufacturer Name'
-            }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Additional description or notes'
+                'placeholder': 'e.g., Pfizer (optional)'
             }),
             'requires_prescription': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
         }
-    
-    def clean_rxcui(self):
-        rxcui = self.cleaned_data.get('rxcui')
-        if rxcui and not rxcui.isdigit():
-            raise forms.ValidationError("RxCUI must contain only numbers")
-        return rxcui
-    
-    def clean_strength(self):
-        strength = self.cleaned_data.get('strength')
-        if strength and not any(char.isdigit() for char in strength):
-            raise forms.ValidationError("Strength should include numeric value")
-        return strength
+        help_texts = {
+            'manufacturer': 'Optional',
+        }
+
 
 class BatchForm(forms.ModelForm):
     class Meta:

@@ -96,8 +96,13 @@ def check_fda_dosage_api(request):
 @technician_required
 def prescription_create(request):
     """Create new prescription with FDA dosage checking and AI interaction detection"""
+    print(f"Request method: {request.method}")
     if request.method == 'POST':
+        print(f"POST data received: {request.POST}")
+        print(f"Items data: {request.POST.get('items', 'No items')}")
         form = PrescriptionForm(request.POST)
+        print(f"Form is valid: {form.is_valid()}")
+        print(f"Form errors: {form.errors}")
         items_data = request.POST.get('items', '[]')
         
         try:

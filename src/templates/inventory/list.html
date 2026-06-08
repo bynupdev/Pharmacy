@@ -1,115 +1,137 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Inventory Management{% endblock %}
+{% block title %}Drugs - Pharmacy Management System{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <div class="row mb-4">
-        <div class="col">
-            <h1><i class="fas fa-boxes"></i> Inventory Management</h1>
-        </div>
-        <div class="col text-end">
-            <a href="{% url 'inventory:add' %}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Add New Drug
-            </a>
-            <a href="{% url 'inventory:stock_alerts' %}" class="btn btn-warning">
-                <i class="fas fa-exclamation-triangle"></i> Alerts
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="fas fa-pills"></i> Drug Inventory</h4>
+            <a href="{% url 'inventory:add' %}" class="btn btn-light btn-sm">
+                <i class="fas fa-plus"></i> Add Drug
             </a>
         </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="card mb-4">
         <div class="card-body">
-            <form method="get" class="row g-3">
-                <div class="col-md-6">
-                    <div class="input-group">
-                        <input type="text" name="search" class="form-control" placeholder="Search drugs..." value="{{ search_query }}">
-                        <button class="btn btn-primary" type="submit">
-                            <i class="fas fa-search"></i> Search
+            <!-- Search -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <form method="get" class="d-flex gap-2">
+                        <input type="text" name="search" class="form-control" placeholder="Search by name..." value="{{ search_query }}">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-search"></i>
                         </button>
-                    </div>
+                        {% if search_query %}
+                            <a href="{% url 'inventory:list' %}" class="btn btn-outline-secondary">Clear</a>
+                        {% endif %}
+                    </form>
                 </div>
-                <div class="col-md-3">
-                    <select name="form" class="form-select" onchange="this.form.submit()">
-                        <option value="">All Forms</option>
-                        {% for value, label in drug_forms %}
-                        <option value="{{ value }}" {% if form_filter == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3 text-end">
-                    <a href="{% url 'inventory:list' %}" class="btn btn-secondary">Clear Filters</a>
-                </div>
-            </form>
-        </div>
-    </div>
+            </div>
 
-    <!-- Inventory Table -->
-    <div class="card">
-        <div class="card-body">
+            <!-- Drug Table -->
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>Drug Name</th>
+                            <th>Name</th>
                             <th>Generic Name</th>
                             <th>Strength</th>
                             <th>Form</th>
-                            <th>Total Stock</th>
-                            <th>Batches</th>
-                            <th>Nearest Expiry</th>
+                            <th>Rx Required</th>
+                            <th>Stock</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for drug in drugs %}
                         <tr>
-                            <td>
-                                <strong>{{ drug.name }}</strong>
-                                {% if drug.requires_prescription %}
-                                <span class="badge bg-warning">Rx</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ drug.generic_name }}</td>
+                            <td><strong>{{ drug.name }}</strong></td>
+                            <td>{{ drug.generic_name|default:"-" }}</td>
                             <td>{{ drug.strength }}</td>
                             <td>{{ drug.get_form_display }}</td>
                             <td>
-                                <span class="badge {% if drug.total_stock < 50 %}bg-danger{% elif drug.total_stock < 100 %}bg-warning{% else %}bg-success{% endif %}">
-                                    {{ drug.total_stock|default:0 }} units
-                                </span>
-                            </td>
-                            <td>{{ drug.batches.count }}</td>
-                            <td>
-                                {% if drug.nearest_expiry %}
-                                    {% if drug.nearest_expiry < now %}
-                                        <span class="badge bg-danger">Expired</span>
-                                    {% elif drug.nearest_expiry < now %}
-                                        <span class="badge bg-warning">{{ drug.nearest_expiry|date:"M d, Y" }}</span>
-                                    {% else %}
-                                        {{ drug.nearest_expiry|date:"M d, Y" }}
-                                    {% endif %}
+                                {% if drug.requires_prescription %}
+                                    <span class="badge bg-danger">Yes</span>
                                 {% else %}
-                                    No stock
+                                    <span class="badge bg-success">No</span>
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{% url 'inventory:detail' drug.id %}" class="btn btn-sm btn-info" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{% url 'inventory:edit' drug.id %}" class="btn btn-sm btn-primary" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="{% url 'inventory:add_batch' drug.id %}" class="btn btn-sm btn-success" title="Add Batch">
-                                    <i class="fas fa-plus"></i>
-                                </a>
+                                <span class="badge bg-secondary">{{ drug.total_stock }} units</span>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'inventory:edit' drug.id %}" class="btn btn-sm btn-warning" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'inventory:add_batch' drug.id %}" class="btn btn-sm btn-success" title="Add Stock">
+                                        <i class="fas fa-plus-circle"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#stockModal{{ drug.id }}" title="View Stock">
+                                        <i class="fas fa-boxes"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
+                        
+                        <!-- Stock Modal -->
+                        <div class="modal fade" id="stockModal{{ drug.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-primary text-white">
+                                        <h5 class="modal-title">{{ drug.name }} - Stock Details</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        {% if drug.batches.all %}
+                                            <table class="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Batch #</th>
+                                                        <th>Quantity</th>
+                                                        <th>Expiry Date</th>
+                                                        <th>Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for batch in drug.batches.all %}
+                                                    <tr class="{% if batch.quantity <= 10 %}table-warning{% endif %}">
+                                                        <td><small>{{ batch.batch_number }}</small></td>
+                                                        <td>{{ batch.quantity }}</td>
+                                                        <td>{{ batch.expiry_date|date:"Y-m-d" }}</td>
+                                                        <td>
+                                                            {% if batch.quantity == 0 %}
+                                                                <span class="badge bg-secondary">Out of Stock</span>
+                                                            {% elif batch.quantity <= 10 %}
+                                                                <span class="badge bg-warning">Low Stock</span>
+                                                            {% else %}
+                                                                <span class="badge bg-success">In Stock</span>
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        {% else %}
+                                            <p class="text-muted text-center">No stock batches available.</p>
+                                            <div class="text-center">
+                                                <a href="{% url 'inventory:add_batch' drug.id %}" class="btn btn-sm btn-success">
+                                                    <i class="fas fa-plus"></i> Add First Batch
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">
-                                <i class="fas fa-box-open fa-3x mb-3"></i>
-                                <p>No drugs found. Click "Add New Drug" to get started.</p>
+                            <td colspan="7" class="text-center py-4">
+                                <i class="fas fa-pills fa-3x text-muted mb-3"></i>
+                                <p>No drugs found.</p>
+                                <a href="{% url 'inventory:add' %}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus"></i> Add Your First Drug
+                                </a>
                             </td>
                         </tr>
                         {% endfor %}
@@ -119,30 +141,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-// Add custom template filter for date arithmetic
-document.addEventListener('DOMContentLoaded', function() {
-    // This would normally be a Django template filter
-    // For demo purposes, we'll handle it in JavaScript
-    const expiryCells = document.querySelectorAll('td:nth-child(7)');
-    const today = new Date();
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(today.getDate() + 30);
-    
-    expiryCells.forEach(cell => {
-        const dateText = cell.textContent.trim();
-        if (dateText && dateText !== 'No stock') {
-            const expiryDate = new Date(dateText);
-            if (expiryDate < today) {
-                cell.innerHTML = '<span class="badge bg-danger">Expired</span>';
-            } else if (expiryDate < thirtyDaysFromNow) {
-                cell.innerHTML = `<span class="badge bg-warning">${dateText}</span>`;
-            }
-        }
-    });
-});
-</script>
 {% endblock %}

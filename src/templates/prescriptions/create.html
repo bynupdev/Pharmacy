@@ -4,29 +4,23 @@
 {% block title %}Create Prescription - Pharmacy Management System{% endblock %}
 
 {% block extra_css %}
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <style>
-    /* Desktop Optimized Layout */
     .prescription-container {
-        max-width: 1600px;
+        max-width: 1400px;
         margin: 20px auto;
         padding: 0 20px;
     }
     
-    /* Main Layout */
     .main-layout {
         display: flex;
         gap: 25px;
     }
     
-    /* Left Panel - Form */
     .form-panel {
         flex: 1;
         min-width: 0;
     }
     
-    /* Right Panel - Items Cart */
     .cart-panel {
         width: 450px;
         flex-shrink: 0;
@@ -35,7 +29,6 @@
         height: fit-content;
     }
     
-    /* Cards */
     .card {
         border: none;
         border-radius: 16px;
@@ -52,15 +45,10 @@
         border: none;
     }
     
-    .card-header i {
-        margin-right: 10px;
-    }
-    
     .card-body {
         padding: 24px;
     }
     
-    /* Form Layout */
     .form-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -96,27 +84,59 @@
         background: #f8fafc;
         border-radius: 12px;
         padding: 20px;
-        margin-bottom: 20px;
     }
     
-    /* Select2 Custom Styling */
-    .select2-container--bootstrap-5 .select2-selection {
+    .search-box {
+        margin-bottom: 15px;
+    }
+    
+    .drug-dropdown {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
-        border-color: #e2e8f0;
-        min-height: 46px;
+        background: white;
     }
     
-    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
-        line-height: 44px;
-        padding-left: 16px;
+    .drug-option {
+        padding: 12px 16px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background 0.2s;
     }
     
-    .select2-container--bootstrap-5 .select2-dropdown {
+    .drug-option:hover {
+        background: #e8f4f5;
+    }
+    
+    .drug-option.selected {
+        background: #0a6c75;
+        color: white;
+    }
+    
+    .drug-option.selected .text-muted {
+        color: #ddd !important;
+    }
+    
+    .drug-name {
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .drug-generic {
+        font-size: 12px;
+        color: #718096;
+    }
+    
+    .selected-drug-info {
+        margin-top: 15px;
+        padding: 12px;
+        background: #e8f4f5;
         border-radius: 10px;
-        border-color: #e2e8f0;
+        display: none;
     }
     
-    /* Dosage Input Group */
+    /* Dosage Fields */
     .dosage-group {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -151,15 +171,7 @@
         outline: none;
     }
     
-    .dosage-field input {
-        border-bottom: 2px solid #e2e8f0;
-    }
-    
-    .dosage-field input:focus {
-        border-bottom-color: #0a6c75;
-    }
-    
-    /* Items Cart */
+    /* Cart Styles */
     .cart-items {
         max-height: 350px;
         overflow-y: auto;
@@ -171,10 +183,9 @@
         align-items: center;
         padding: 12px;
         border-bottom: 1px solid #e2e8f0;
-    }
-    
-    .cart-item:hover {
+        margin-bottom: 8px;
         background: #f8fafc;
+        border-radius: 10px;
     }
     
     .cart-item-info {
@@ -192,10 +203,6 @@
         margin-top: 4px;
     }
     
-    .cart-item-details span {
-        margin-right: 10px;
-    }
-    
     .cart-item-quantity {
         font-weight: 600;
         color: #0a6c75;
@@ -206,14 +213,8 @@
         color: #e53e3e;
         cursor: pointer;
         padding: 5px 8px;
-        border-radius: 6px;
     }
     
-    .remove-item:hover {
-        background: #fff5f5;
-    }
-    
-    /* Cart Summary */
     .cart-summary {
         background: #f8fafc;
         border-radius: 12px;
@@ -221,13 +222,13 @@
         margin-top: 16px;
     }
     
-    .summary-row {
+    .summary-line {
         display: flex;
         justify-content: space-between;
         padding: 8px 0;
     }
     
-    .summary-row.total {
+    .summary-line.total {
         border-top: 2px solid #e2e8f0;
         margin-top: 8px;
         padding-top: 12px;
@@ -259,20 +260,6 @@
         cursor: not-allowed;
     }
     
-    .btn-outline-custom {
-        border: 1px solid #0a6c75;
-        color: #0a6c75;
-        background: white;
-        border-radius: 10px;
-        padding: 10px 20px;
-        font-weight: 500;
-    }
-    
-    .btn-outline-custom:hover {
-        background: #0a6c75;
-        color: white;
-    }
-    
     .btn-check-interactions {
         background: #6c757d;
         color: white;
@@ -282,10 +269,16 @@
         font-weight: 600;
         width: 100%;
         margin-bottom: 12px;
+        transition: all 0.2s;
     }
     
     .btn-check-interactions:hover:not(:disabled) {
         background: #5a6268;
+    }
+    
+    .btn-check-interactions:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
     }
     
     /* Interaction Results */
@@ -303,11 +296,6 @@
     .interaction-results.danger {
         background: #fff5f5;
         border: 1px solid #feb2b2;
-    }
-    
-    .interaction-results.warning {
-        background: #fffff0;
-        border: 1px solid #fefcbf;
     }
     
     .interaction-results.success {
@@ -329,11 +317,6 @@
     .interaction-item.moderate {
         background: #feebc8;
         border-left: 4px solid #ed8936;
-    }
-    
-    .interaction-item.low {
-        background: #e6fffa;
-        border-left: 4px solid #38b2ac;
     }
     
     /* Loading Overlay */
@@ -362,33 +345,28 @@
         text-align: center;
     }
     
-    /* Responsive */
+    .empty-cart {
+        text-align: center;
+        padding: 40px 20px;
+        color: #718096;
+    }
+    
+    .filter-badge {
+        margin-top: 10px;
+        font-size: 12px;
+        color: #718096;
+    }
+    
     @media (max-width: 1024px) {
         .main-layout {
             flex-direction: column;
         }
-        
         .cart-panel {
             width: 100%;
             position: static;
         }
-        
         .dosage-group {
             grid-template-columns: repeat(2, 1fr);
-        }
-    }
-    
-    @media (max-width: 640px) {
-        .dosage-group {
-            grid-template-columns: 1fr;
-        }
-        
-        .form-grid {
-            grid-template-columns: 1fr;
-        }
-        
-        .full-width {
-            grid-column: span 1;
         }
     }
 </style>
@@ -450,56 +428,69 @@
                     <div class="drug-selection-section">
                         <div class="form-group">
                             <label class="form-label">
-                                <i class="fas fa-search"></i> Search & Select Drug *
+                                <i class="fas fa-search"></i> Search Drug
                             </label>
-                            <select id="drug-select" class="form-select" style="width: 100%;">
-                                <option value="">Search for a drug...</option>
+                            <input type="text" id="search-input" class="form-control" placeholder="Type to filter drugs...">
+                        </div>
+                        
+                        <div class="form-group mt-2">
+                            <label class="form-label">
+                                <i class="fas fa-list"></i> Select Drug *
+                            </label>
+                            <div class="drug-dropdown" id="drug-dropdown">
                                 {% for drug in drugs %}
-                                <option value="{{ drug.id }}" data-name="{{ drug.name }}" data-strength="{{ drug.strength }}" data-generic="{{ drug.generic_name }}">
-                                    {{ drug.name }} {{ drug.strength }} - {{ drug.generic_name }}
-                                </option>
+                                <div class="drug-option" data-drug-id="{{ drug.id }}" data-drug-name="{{ drug.name }}" data-drug-strength="{{ drug.strength }}" data-drug-generic="{{ drug.generic_name }}">
+                                    <div class="drug-name">{{ drug.name }} {{ drug.strength }}</div>
+                                    <div class="drug-generic">{{ drug.generic_name }}</div>
+                                </div>
+                                {% empty %}
+                                <div class="p-3 text-muted">No drugs available. Please add drugs to inventory first.</div>
                                 {% endfor %}
-                            </select>
+                            </div>
+                            <div class="filter-badge" id="filter-badge"></div>
+                        </div>
+                        
+                        <div id="selected-drug-info" class="selected-drug-info">
+                            <strong>Selected:</strong> <span id="selected-drug-name-display"></span>
+                            <input type="hidden" id="selected-drug-id">
                         </div>
                         
                         <div id="dosage-fields" style="display: none; margin-top: 20px;">
                             <div class="dosage-group">
                                 <div class="dosage-field">
-                                    <label><i class="fas fa-capsules"></i> Strength/Dose</label>
-                                    <input type="number" id="strength" class="form-control" placeholder="Enter dose" step="1" min="0">
-                                </div>
-                                <div class="dosage-field">
-                                    <label><i class="fas fa-chart-line"></i> Unit</label>
-                                    <select id="unit" class="form-select">
-                                        <option value="mg">mg</option>
-                                        <option value="mcg">mcg</option>
-                                        <option value="g">g</option>
-                                        <option value="tablet">tablet(s)</option>
-                                        <option value="capsule">capsule(s)</option>
-                                        <option value="ml">ml</option>
+                                    <label><i class="fas fa-capsules"></i> Dosage</label>
+                                    <select id="dosage" class="form-select">
+                                        <option value="1 tablet">1 tablet</option>
+                                        <option value="2 tablets">2 tablets</option>
+                                        <option value="1 capsule">1 capsule</option>
+                                        <option value="2 capsules">2 capsules</option>
+                                        <option value="5ml">5ml</option>
+                                        <option value="10ml">10ml</option>
                                     </select>
                                 </div>
                                 <div class="dosage-field">
-                                    <label><i class="fas fa-clock"></i> Times per Day</label>
+                                    <label><i class="fas fa-clock"></i> Frequency</label>
                                     <select id="frequency" class="form-select">
-                                        <option value="1">Once daily</option>
-                                        <option value="2">Twice daily</option>
-                                        <option value="3">Three times daily</option>
-                                        <option value="4">Four times daily</option>
-                                        <option value="6">Every 4 hours</option>
+                                        <option value="Once daily">Once daily</option>
+                                        <option value="Twice daily">Twice daily</option>
+                                        <option value="Three times daily">Three times daily</option>
+                                        <option value="Four times daily">Four times daily</option>
+                                        <option value="Every 4 hours">Every 4 hours</option>
+                                        <option value="Every 6 hours">Every 6 hours</option>
+                                        <option value="Every 8 hours">Every 8 hours</option>
                                     </select>
                                 </div>
                                 <div class="dosage-field">
                                     <label><i class="fas fa-calendar-week"></i> Duration (days)</label>
-                                    <input type="number" id="duration" class="form-control" placeholder="Days" value="7" min="1">
+                                    <input type="number" id="duration" class="form-control" value="7" min="1">
+                                </div>
+                                <div class="dosage-field">
+                                    <label><i class="fas fa-calculator"></i> Quantity</label>
+                                    <input type="number" id="quantity" class="form-control" readonly>
                                 </div>
                             </div>
                             
                             <div class="dosage-group" style="margin-top: 15px;">
-                                <div class="dosage-field">
-                                    <label><i class="fas fa-calculator"></i> Total Quantity</label>
-                                    <input type="number" id="quantity" class="form-control" placeholder="Auto-calculated" readonly>
-                                </div>
                                 <div class="dosage-field">
                                     <label><i class="fas fa-notes-medical"></i> Instructions</label>
                                     <input type="text" id="instructions" class="form-control" placeholder="Special instructions">
@@ -507,7 +498,7 @@
                                 <div class="dosage-field">
                                     <label>&nbsp;</label>
                                     <button type="button" id="add-item-btn" class="btn-primary-custom" style="padding: 10px;">
-                                        <i class="fas fa-plus"></i> Add
+                                        <i class="fas fa-plus"></i> Add to Cart
                                     </button>
                                 </div>
                             </div>
@@ -517,7 +508,7 @@
             </div>
         </div>
         
-        <!-- Right Panel - Items Cart -->
+        <!-- Right Panel - Cart -->
         <div class="cart-panel">
             <div class="card">
                 <div class="card-header">
@@ -526,24 +517,24 @@
                 </div>
                 <div class="card-body">
                     <div id="cart-items" class="cart-items">
-                        <div class="text-center text-muted py-4">
-                            <i class="fas fa-prescription-bottle fa-2x mb-2"></i>
-                            <p>No items added yet.<br>Search and add medications above.</p>
+                        <div class="empty-cart">
+                            <i class="fas fa-prescription-bottle fa-3x mb-3"></i>
+                            <p>No items added yet.</p>
+                            <small>Search and add medications above.</small>
                         </div>
                     </div>
                     
                     <div id="cart-summary" class="cart-summary" style="display: none;">
-                        <div class="summary-row">
+                        <div class="summary-line">
                             <span>Total Items:</span>
                             <span id="total-items">0</span>
                         </div>
-                        <div class="summary-row total">
+                        <div class="summary-line total">
                             <span>Total Medications:</span>
                             <span id="total-medications">0</span>
                         </div>
                     </div>
                     
-                    <!-- Check Interactions Button - BEFORE Save -->
                     <div class="mt-3">
                         <button type="button" id="check-interactions-btn" class="btn-check-interactions" disabled>
                             <i class="fas fa-shield-alt"></i> Check Drug Interactions
@@ -554,7 +545,6 @@
                         </button>
                     </div>
                     
-                    <!-- Interaction Results Display -->
                     <div id="interaction-results" class="interaction-results"></div>
                 </div>
             </div>
@@ -566,25 +556,34 @@
 <div id="loading-overlay" class="loading-overlay">
     <div class="loading-content">
         <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
-        <p class="mt-3">Checking for drug interactions and dosage safety...</p>
+        <p class="mt-3">Checking for drug interactions...</p>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 // Global variables
-let cartItems = [];
+let cart = [];
 let interactionsChecked = false;
 let interactionsPassed = false;
 let csrfToken = '{{ csrf_token }}';
+let selectedDrugId = null;
+let selectedDrugName = null;
 
 // DOM Elements
-const drugSelect = $('#drug-select');
+const patientSelect = document.getElementById('id_patient');
+const prescribedBy = document.getElementById('id_prescribed_by');
+const prescribedDate = document.getElementById('id_prescribed_date');
+const notes = document.getElementById('id_notes');
+const searchInput = document.getElementById('search-input');
+const drugDropdown = document.getElementById('drug-dropdown');
+const drugOptions = document.querySelectorAll('.drug-option');
+const selectedDrugInfo = document.getElementById('selected-drug-info');
+const selectedDrugNameDisplay = document.getElementById('selected-drug-name-display');
+const selectedDrugIdInput = document.getElementById('selected-drug-id');
 const dosageFields = document.getElementById('dosage-fields');
-const strengthInput = document.getElementById('strength');
-const unitSelect = document.getElementById('unit');
+const dosageSelect = document.getElementById('dosage');
 const frequencySelect = document.getElementById('frequency');
 const durationInput = document.getElementById('duration');
 const quantityInput = document.getElementById('quantity');
@@ -599,108 +598,130 @@ const totalItemsSpan = document.getElementById('total-items');
 const totalMedicationsSpan = document.getElementById('total-medications');
 const interactionResults = document.getElementById('interaction-results');
 const loadingOverlay = document.getElementById('loading-overlay');
-const patientSelect = document.getElementById('id_patient');
+const filterBadge = document.getElementById('filter-badge');
 
-// Initialize Select2 for searchable dropdown
-drugSelect.select2({
-    theme: 'bootstrap-5',
-    placeholder: 'Search for a drug...',
-    allowClear: true,
-    width: '100%'
-});
-
-// Auto-calculate quantity
+// Calculate quantity based on frequency and duration
 function calculateQuantity() {
-    const frequency = parseInt(frequencySelect.value) || 1;
-    const duration = parseInt(durationInput.value) || 1;
-    const quantity = frequency * duration;
-    quantityInput.value = quantity;
-    return quantity;
+    const frequencyText = frequencySelect.value;
+    let timesPerDay = 1;
+    if (frequencyText === 'Twice daily') timesPerDay = 2;
+    else if (frequencyText === 'Three times daily') timesPerDay = 3;
+    else if (frequencyText === 'Four times daily') timesPerDay = 4;
+    else if (frequencyText === 'Every 4 hours') timesPerDay = 6;
+    else if (frequencyText === 'Every 6 hours') timesPerDay = 4;
+    else if (frequencyText === 'Every 8 hours') timesPerDay = 3;
+    
+    const duration = parseInt(durationInput.value) || 7;
+    quantityInput.value = timesPerDay * duration;
 }
 
 frequencySelect.addEventListener('change', calculateQuantity);
 durationInput.addEventListener('input', calculateQuantity);
 
-// Handle drug selection
-drugSelect.on('change', function() {
-    const selectedOption = drugSelect.find('option:selected');
-    if (selectedOption.val()) {
-        dosageFields.style.display = 'block';
-        const drugName = selectedOption.data('name');
-        const drugStrength = selectedOption.data('strength');
-        if (drugStrength) {
-            const strengthMatch = drugStrength.match(/(\d+)/);
-            if (strengthMatch) {
-                strengthInput.value = strengthMatch[1];
-            }
+// Filter drugs based on search input
+searchInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    let visibleCount = 0;
+    
+    drugOptions.forEach(option => {
+        const drugName = option.querySelector('.drug-name').textContent.toLowerCase();
+        const drugGeneric = option.querySelector('.drug-generic').textContent.toLowerCase();
+        
+        if (drugName.includes(searchTerm) || drugGeneric.includes(searchTerm)) {
+            option.style.display = 'block';
+            visibleCount++;
+        } else {
+            option.style.display = 'none';
         }
-        calculateQuantity();
+    });
+    
+    if (visibleCount === 0) {
+        filterBadge.textContent = 'No drugs match your search';
+        filterBadge.style.color = '#dc3545';
     } else {
-        dosageFields.style.display = 'none';
-        strengthInput.value = '';
+        filterBadge.textContent = `${visibleCount} drug(s) found`;
+        filterBadge.style.color = '#718096';
     }
+});
+
+// Select drug from dropdown
+drugOptions.forEach(option => {
+    option.addEventListener('click', function() {
+        // Remove selected class from all
+        drugOptions.forEach(opt => opt.classList.remove('selected'));
+        
+        // Add selected class to clicked
+        this.classList.add('selected');
+        
+        // Get drug info
+        const drugId = this.dataset.drugId;
+        const drugName = this.dataset.drugName;
+        const drugStrength = this.dataset.drugStrength;
+        
+        selectedDrugId = drugId;
+        selectedDrugName = drugName;
+        selectedDrugIdInput.value = drugId;
+        selectedDrugNameDisplay.textContent = `${drugName} ${drugStrength}`;
+        selectedDrugInfo.style.display = 'block';
+        dosageFields.style.display = 'block';
+        calculateQuantity();
+    });
 });
 
 // Add item to cart
 addItemBtn.addEventListener('click', function() {
-    const selectedOption = drugSelect.find('option:selected');
-    const drugId = selectedOption.val();
-    const drugName = selectedOption.data('name');
-    const strength = parseFloat(strengthInput.value);
-    const unit = unitSelect.value;
-    const frequency = frequencySelect.value;
-    const frequencyText = frequencySelect.options[frequencySelect.selectedIndex].text;
-    const duration = parseInt(durationInput.value);
-    const quantity = parseInt(quantityInput.value);
-    const instructions = instructionsInput.value;
-    
-    if (!drugId) {
-        alert('Please select a drug');
+    if (!selectedDrugId) {
+        alert('Please select a drug first');
         return;
     }
     
-    if (!strength || strength <= 0) {
-        alert('Please enter a valid strength/dose');
-        return;
-    }
+    const drugNameDisplay = selectedDrugNameDisplay.textContent;
     
-    const dosageText = `${strength}${unit}`;
-    
-    cartItems.push({
-        drug_id: drugId,
-        drug_name: drugName,
-        dosage: dosageText,
-        frequency: frequencyText,
-        duration: `${duration} days`,
-        quantity: quantity,
-        instructions: instructions
+    cart.push({
+        drug_id: selectedDrugId,
+        drug_name: drugNameDisplay,
+        dosage: dosageSelect.value,
+        frequency: frequencySelect.value,
+        duration: `${parseInt(durationInput.value)} days`,
+        quantity: parseInt(quantityInput.value),
+        instructions: instructionsInput.value
     });
     
-    updateCartDisplay();
+    updateCart();
     
-    // Reset form and clear selection
-    drugSelect.val(null).trigger('change');
-    strengthInput.value = '';
+    // Reset selection
+    drugOptions.forEach(opt => opt.classList.remove('selected'));
+    selectedDrugInfo.style.display = 'none';
+    selectedDrugId = null;
+    selectedDrugName = null;
+    selectedDrugIdInput.value = '';
+    selectedDrugNameDisplay.textContent = '';
+    dosageFields.style.display = 'none';
     instructionsInput.value = '';
     durationInput.value = '7';
-    dosageFields.style.display = 'none';
     calculateQuantity();
+    searchInput.value = '';
     
-    // Reset interaction status when cart changes
+    // Reset interaction status
     interactionsChecked = false;
     interactionsPassed = false;
     checkInteractionsBtn.disabled = false;
     saveBtn.disabled = true;
     interactionResults.innerHTML = '';
-    interactionResults.classList.remove('show', 'danger', 'warning', 'success');
+    interactionResults.classList.remove('show', 'danger', 'success');
+    
+    // Show all drugs again
+    drugOptions.forEach(opt => opt.style.display = 'block');
+    filterBadge.textContent = '';
 });
 
-function updateCartDisplay() {
-    if (cartItems.length === 0) {
+function updateCart() {
+    if (cart.length === 0) {
         cartContainer.innerHTML = `
-            <div class="text-center text-muted py-4">
-                <i class="fas fa-prescription-bottle fa-2x mb-2"></i>
-                <p>No items added yet.<br>Search and add medications above.</p>
+            <div class="empty-cart">
+                <i class="fas fa-prescription-bottle fa-3x mb-3"></i>
+                <p>No items added yet.</p>
+                <small>Search and add medications above.</small>
             </div>
         `;
         cartSummary.style.display = 'none';
@@ -711,15 +732,15 @@ function updateCartDisplay() {
     }
     
     let html = '';
-    cartItems.forEach((item, index) => {
+    cart.forEach((item, index) => {
         html += `
             <div class="cart-item">
                 <div class="cart-item-info">
                     <div class="cart-item-name">${escapeHtml(item.drug_name)}</div>
                     <div class="cart-item-details">
-                        <span><i class="fas fa-capsules"></i> ${escapeHtml(item.dosage)}</span>
-                        <span><i class="fas fa-clock"></i> ${escapeHtml(item.frequency)}</span>
-                        <span><i class="fas fa-calendar"></i> ${escapeHtml(item.duration)}</span>
+                        <span>${escapeHtml(item.dosage)}</span> |
+                        <span>${escapeHtml(item.frequency)}</span> |
+                        <span>${escapeHtml(item.duration)}</span>
                     </div>
                 </div>
                 <div class="cart-item-quantity">x${item.quantity}</div>
@@ -732,29 +753,30 @@ function updateCartDisplay() {
     
     cartContainer.innerHTML = html;
     cartSummary.style.display = 'block';
-    itemCountSpan.textContent = cartItems.length;
-    totalItemsSpan.textContent = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-    totalMedicationsSpan.textContent = cartItems.length;
+    itemCountSpan.textContent = cart.length;
+    totalItemsSpan.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
+    totalMedicationsSpan.textContent = cart.length;
     checkInteractionsBtn.disabled = false;
 }
 
 function removeItem(index) {
-    cartItems.splice(index, 1);
-    updateCartDisplay();
+    cart.splice(index, 1);
+    updateCart();
     interactionsChecked = false;
     interactionsPassed = false;
     saveBtn.disabled = true;
     interactionResults.innerHTML = '';
-    interactionResults.classList.remove('show', 'danger', 'warning', 'success');
+    interactionResults.classList.remove('show', 'danger', 'success');
 }
 
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// Check Interactions
+// Check interactions
 checkInteractionsBtn.addEventListener('click', function() {
     const patientId = patientSelect.value;
     
@@ -763,23 +785,12 @@ checkInteractionsBtn.addEventListener('click', function() {
         return;
     }
     
-    if (cartItems.length === 0) {
+    if (cart.length === 0) {
         alert('Please add at least one medication');
         return;
     }
     
-    // Show loading overlay
     loadingOverlay.classList.add('show');
-    
-    // Prepare data for API
-    const items = cartItems.map(item => ({
-        drug_id: item.drug_id,
-        drug_name: item.drug_name,
-        dosage: item.dosage,
-        frequency: item.frequency,
-        duration: item.duration,
-        quantity: item.quantity
-    }));
     
     fetch('/prescriptions/api/check-interactions/', {
         method: 'POST',
@@ -789,7 +800,14 @@ checkInteractionsBtn.addEventListener('click', function() {
         },
         body: JSON.stringify({
             patient_id: patientId,
-            items: items
+            items: cart.map(item => ({
+                drug_id: item.drug_id,
+                drug_name: item.drug_name,
+                dosage: item.dosage,
+                frequency: item.frequency,
+                duration: item.duration,
+                quantity: item.quantity
+            }))
         })
     })
     .then(response => response.json())
@@ -813,10 +831,7 @@ checkInteractionsBtn.addEventListener('click', function() {
                 displayInteractionResults([], 'success');
                 saveBtn.disabled = false;
             }
-            
             interactionsChecked = true;
-        } else {
-            alert('Error checking interactions: ' + (data.error || 'Unknown error'));
         }
     })
     .catch(error => {
@@ -828,10 +843,10 @@ checkInteractionsBtn.addEventListener('click', function() {
 function displayInteractionResults(alerts, type) {
     if (alerts.length === 0 && type === 'success') {
         interactionResults.innerHTML = `
-            <div class="interaction-item low">
+            <div class="interaction-item" style="background: #e6fffa; border-left: 4px solid #38b2ac;">
                 <i class="fas fa-check-circle"></i>
                 <strong>No interactions detected</strong>
-                <p class="mb-0">All medications appear safe to use together. You may proceed with saving the prescription.</p>
+                <p class="mb-0">You may proceed with saving the prescription.</p>
             </div>
         `;
         interactionResults.className = 'interaction-results show success';
@@ -840,23 +855,14 @@ function displayInteractionResults(alerts, type) {
     
     let html = '';
     alerts.forEach(alert => {
-        const severityClass = alert.severity || 'moderate';
         html += `
-            <div class="interaction-item ${severityClass}">
-                <strong>
-                    ${severityClass === 'high' ? '🔴 HIGH RISK' : severityClass === 'moderate' ? '🟡 MODERATE RISK' : '🟢 LOW RISK'}
-                </strong>
-                <p class="mb-0">${escapeHtml(alert.description || 'Interaction detected')}</p>
-                <small class="text-muted">${escapeHtml(alert.recommendation || 'Please review')}</small>
+            <div class="interaction-item ${alert.severity === 'high' ? 'high' : 'moderate'}">
+                <strong>${alert.severity === 'high' ? '🔴 HIGH RISK' : '🟡 MODERATE RISK'}</strong>
+                <p class="mb-0">${escapeHtml(alert.description)}</p>
+                <small>${escapeHtml(alert.recommendation)}</small>
             </div>
         `;
     });
-    
-    if (type === 'danger') {
-        html = `<div class="mb-2"><strong>⚠️ High-risk interactions detected! Please review before saving.</strong></div>` + html;
-    } else if (type === 'warning') {
-        html = `<div class="mb-2"><strong>⚠️ Potential interactions detected. Please review carefully.</strong></div>` + html;
-    }
     
     interactionResults.innerHTML = html;
     interactionResults.className = `interaction-results show ${type}`;
@@ -865,38 +871,18 @@ function displayInteractionResults(alerts, type) {
 // Save prescription
 saveBtn.addEventListener('click', function() {
     if (!interactionsChecked || !interactionsPassed) {
-        alert('Please check drug interactions first and resolve any high-risk issues before saving.');
-        return;
-    }
-    
-    const patientId = patientSelect.value;
-    const prescribedBy = document.getElementById('id_prescribed_by').value;
-    const prescribedDate = document.getElementById('id_prescribed_date').value;
-    const notes = document.getElementById('id_notes').value;
-    
-    if (!patientId) {
-        alert('Please select a patient');
-        return;
-    }
-    
-    if (!prescribedBy) {
-        alert('Please enter prescribing doctor');
-        return;
-    }
-    
-    if (cartItems.length === 0) {
-        alert('Please add at least one medication');
+        alert('Please check drug interactions first');
         return;
     }
     
     loadingOverlay.classList.add('show');
     
     const formData = new FormData();
-    formData.append('patient', patientId);
-    formData.append('prescribed_by', prescribedBy);
-    formData.append('prescribed_date', prescribedDate);
-    formData.append('notes', notes);
-    formData.append('items', JSON.stringify(cartItems));
+    formData.append('patient', patientSelect.value);
+    formData.append('prescribed_by', prescribedBy.value);
+    formData.append('prescribed_date', prescribedDate.value);
+    formData.append('notes', notes.value);
+    formData.append('items', JSON.stringify(cart));
     formData.append('csrfmiddlewaretoken', csrfToken);
     
     fetch(window.location.href, {
@@ -906,13 +892,11 @@ saveBtn.addEventListener('click', function() {
     .then(response => {
         if (response.redirected) {
             window.location.href = response.url;
-        } else {
-            return response.json();
         }
     })
     .catch(error => {
         loadingOverlay.classList.remove('show');
-        alert('Error saving prescription: ' + error);
+        alert('Error: ' + error);
     });
 });
 </script>
