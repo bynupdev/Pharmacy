@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.http import JsonResponse
 from datetime import timedelta
 
-from prescriptions.models import Prescription
+from prescriptions.models import Patient, Prescription
 from inventory.models import Batch, StockAlert
 from sales.models import Sale
 from .models import UserProfile, PasswordResetToken, Pharmacy, PendingUserRequest
@@ -739,7 +739,7 @@ def dashboard(request):
     context = {}
     
     # Get counts
-    context['total_patients'] = User.objects.filter(is_staff=False).count()
+    context['total_patients'] = Patient.objects.filter(pharmacy=request.pharmacy).count()
     context['total_prescriptions'] = Prescription.objects.count()
     context['pending_prescriptions'] = Prescription.objects.filter(status='pending').count()
     context['low_stock_alerts'] = StockAlert.objects.filter(alert_type='low_stock', is_resolved=False).count()
