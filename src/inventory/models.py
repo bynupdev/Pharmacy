@@ -34,6 +34,8 @@ class Drug(models.Model):
     manufacturer = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     requires_prescription = models.BooleanField(default=True)
+    # ADD THIS FIELD - stores the training data ID
+    training_id = models.CharField(max_length=50, blank=True, null=True, help_text="ID from training dataset")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

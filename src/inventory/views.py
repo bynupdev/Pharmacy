@@ -73,20 +73,36 @@ def inventory_detail(request, pk):
     return render(request, 'inventory/detail.html', context)
 
 
+from .drug_mapper import drug_mapper
+
 @login_required
 @technician_required
 def inventory_add(request):
-    """Add new drug - simplified"""
+    """Add new drug - automatically maps to training ID"""
     if request.method == 'POST':
         form = DrugForm(request.POST)
         if form.is_valid():
             drug = form.save(commit=False)
             drug.pharmacy = request.pharmacy
+            
+            # AUTO-MAP to training ID
+            training_id = drug_mapper.get_training_id(drug.name)
+            if training_id:
+                drug.training_id = training_id
+                messages.info(request, f"Drug mapped to training data (ID: {training_id[:8]}...)")
+            else:
+                # Try fuzzy matching
+                closest = drug_mapper.find_closest_match(drug.name)
+                if closest:
+                    training_id = drug_mapper.get_training_id(closest)
+                    drug.training_id = training_id
+                    messages.warning(request, f"Drug mapped to similar drug '{closest}' in training data")
+                else:
+                    messages.warning(request, "Drug not found in training data. Interaction predictions may be limited.")
+            
             drug.save()
             messages.success(request, f'{drug.name} added successfully.')
             return redirect('inventory:list')
-        else:
-            messages.error(request, 'Please correct the errors below.')
     else:
         form = DrugForm()
     

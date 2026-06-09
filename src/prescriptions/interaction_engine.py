@@ -352,6 +352,25 @@ from patients.models import Patient
 from inventory.models import Drug
 from prescriptions.models import Prescription, PrescriptionItem, InteractionLog
 
+
+# Add brand-to-generic mapping
+BRAND_GENERIC_MAP = {
+    'Lipitor': 'Atorvastatin',
+    'Advil': 'Ibuprofen',
+    'Motrin': 'Ibuprofen',
+    'Tylenol': 'Paracetamol',
+    'Coumadin': 'Warfarin',
+    'Zocor': 'Simvastatin',
+    'Plavix': 'Clopidogrel',
+    'Prilosec': 'Omeprazole',
+    'Nexium': 'Esomeprazole',
+    'Zoloft': 'Sertraline',
+    'Prozac': 'Fluoxetine',
+}
+
+def get_generic_name(drug_name):
+    return BRAND_GENERIC_MAP.get(drug_name, drug_name)
+
 logger = logging.getLogger(__name__)
 
 class DrugInteractionEngine:
@@ -570,3 +589,5 @@ class DrugInteractionEngine:
         multiplier = type_multipliers.get(alert.get('type', ''), 1.0)
         
         return min(100, int(base_score * multiplier))
+    
+
