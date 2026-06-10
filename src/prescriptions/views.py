@@ -505,7 +505,7 @@ from ai_engine.predictor_fixed import fixed_predictor as predictor
 @login_required
 @require_http_methods(["POST"])
 def check_interactions_api(request):
-    """AI-powered drug interaction checking WITH dosage safety checks"""
+    """AI-powered drug interaction checking with dosage safety"""
     try:
         data = json.loads(request.body)
         patient_id = data.get('patient_id')
@@ -520,8 +520,19 @@ def check_interactions_api(request):
         # Get patient for age-based checks
         patient = Patient.objects.get(id=patient_id)
         
+        # Get drug objects with their strengths
+        drugs_with_strength = {}
+        for item in items_data:
+            drug_id = item.get('drug_id')
+            if drug_id:
+                try:
+                    drug = Drug.objects.get(id=drug_id)
+                    drugs_with_strength[drug_id] = drug
+                except Drug.DoesNotExist:
+                    pass
+        
         # ============================================================
-        # STEP 1: DOSAGE SAFETY CHECKS (CRITICAL)
+        # STEP 1: DOSAGE SAFETY CHECKS
         # ============================================================
         dosage_alerts = []
         
@@ -533,20 +544,18 @@ def check_interactions_api(request):
             duration = item.get('duration', '7 days')
             quantity = item.get('quantity', 0)
             
-            # Get drug details if we have ID
-            if drug_id:
-                try:
-                    drug = Drug.objects.get(id=drug_id)
-                    drug_name = drug.name
-                except:
-                    pass
+            # Get drug strength from database
+            drug_strength = None
+            if drug_id and str(drug_id) in drugs_with_strength:
+                drug_strength = drugs_with_strength[str(drug_id)].strength
+            elif drug_id and drug_id in drugs_with_strength:
+                drug_strength = drugs_with_strength[drug_id].strength
             
-            print(f"💊 Checking: {drug_name} - {dosage} {frequency}")
-            
-            # Parse dosage
-            dose_mg = parse_dosage_to_mg(dosage)
+            # Parse dosage with drug strength
+            dose_mg = parse_dosage_to_mg(dosage, drug_strength)
             times_per_day = parse_frequency_to_times(frequency)
             
+            print(f"💊 Checking: {drug_name} - {dosage} (strength: {drug_strength})")
             print(f"   Dose: {dose_mg}mg, Times per day: {times_per_day}")
             
             if dose_mg is None:
@@ -555,42 +564,27 @@ def check_interactions_api(request):
                     'severity': 'warning',
                     'drug': drug_name,
                     'description': f"Could not parse dosage: '{dosage}'. Please verify manually.",
-                    'recommendation': "Check that dosage is entered correctly (e.g., '500mg')"
+                    'recommendation': "Check that dosage is entered correctly"
                 })
                 continue
             
             daily_dose = dose_mg * times_per_day
             
-            # CRITICAL SAFETY LIMITS DATABASE
+            # SAFETY LIMITS DATABASE
             SAFETY_LIMITS = {
-                'ATENOLOL': {'max_daily': 100, 'max_single': 100, 'warning': 'beta-blocker overdose risk'},
-                'ALLOPURINOL': {'max_daily': 800, 'max_single': 300, 'warning': 'severe skin reactions, liver failure'},
-                'AMANTADINE': {'max_daily': 400, 'max_single': 200, 'warning': 'neurotoxicity, hallucinations'},
-                'PARACETAMOL': {'max_daily': 4000, 'max_single': 1000, 'warning': 'liver failure'},
-                'IBUPROFEN': {'max_daily': 3200, 'max_single': 800, 'warning': 'kidney damage, stomach bleeding'},
-                'ASPIRIN': {'max_daily': 4000, 'max_single': 1000, 'warning': 'bleeding risk'},
-                'METFORMIN': {'max_daily': 2550, 'max_single': 1000, 'warning': 'lactic acidosis'},
                 'ATORVASTATIN': {'max_daily': 80, 'max_single': 80, 'warning': 'liver damage, muscle breakdown'},
+                'COLCHICINE': {'max_daily': 2, 'max_single': 1.8, 'warning': 'severe toxicity, death'},
+                'WARFARIN': {'max_daily': 10, 'max_single': 10, 'warning': 'severe bleeding'},
+                'ASPIRIN': {'max_daily': 4000, 'max_single': 1000, 'warning': 'bleeding risk'},
+                'IBUPROFEN': {'max_daily': 3200, 'max_single': 800, 'warning': 'kidney damage, stomach bleeding'},
+                'PARACETAMOL': {'max_daily': 4000, 'max_single': 1000, 'warning': 'liver failure'},
+                'METFORMIN': {'max_daily': 2550, 'max_single': 1000, 'warning': 'lactic acidosis'},
                 'SIMVASTATIN': {'max_daily': 40, 'max_single': 40, 'warning': 'muscle damage'},
                 'LISINOPRIL': {'max_daily': 40, 'max_single': 40, 'warning': 'hypotension, kidney failure'},
-                'WARFARIN': {'max_daily': 10, 'max_single': 10, 'warning': 'severe bleeding'},
                 'DIGOXIN': {'max_daily': 0.5, 'max_single': 0.5, 'warning': 'cardiac toxicity'},
-                'COLCHICINE': {'max_daily': 2, 'max_single': 1.8, 'warning': 'severe toxicity, death'},
-                'THEOPHYLLINE': {'max_daily': 600, 'max_single': 300, 'warning': 'seizures, cardiac arrhythmia'},
-                'PHENYTOIN': {'max_daily': 400, 'max_single': 300, 'warning': 'toxicity, nystagmus'},
-                'CARBAMAZEPINE': {'max_daily': 1200, 'max_single': 400, 'warning': 'blood disorders'},
-                'VALPROATE': {'max_daily': 3000, 'max_single': 1000, 'warning': 'liver failure'},
-                'LITHIUM': {'max_daily': 1800, 'max_single': 600, 'warning': 'toxicity, kidney damage'},
-                'QUETIAPINE': {'max_daily': 800, 'max_single': 400, 'warning': 'sedation, metabolic issues'},
-                'CLOZAPINE': {'max_daily': 900, 'max_single': 450, 'warning': 'seizures, agranulocytosis'},
-                'TRAMADOL': {'max_daily': 400, 'max_single': 100, 'warning': 'seizures, serotonin syndrome'},
-                'CODEINE': {'max_daily': 360, 'max_single': 60, 'warning': 'respiratory depression'},
-                'MORPHINE': {'max_daily': 200, 'max_single': 30, 'warning': 'respiratory depression, addiction'},
-                'OXYCODONE': {'max_daily': 80, 'max_single': 20, 'warning': 'respiratory depression, death'},
-                'HYDROCODONE': {'max_daily': 60, 'max_single': 10, 'warning': 'respiratory depression'},
-                'PROPRANOLOL': {'max_daily': 320, 'max_single': 160, 'warning': 'bradycardia, heart block'},
-                'METOPROLOL': {'max_daily': 400, 'max_single': 200, 'warning': 'bradycardia, hypotension'},
-                'CARVEDILOL': {'max_daily': 100, 'max_single': 50, 'warning': 'heart failure exacerbation'},
+                'AMANTADINE': {'max_daily': 400, 'max_single': 200, 'warning': 'neurotoxicity, hallucinations'},
+                'ALLOPURINOL': {'max_daily': 800, 'max_single': 300, 'warning': 'severe skin reactions'},
+                'ATENOLOL': {'max_daily': 100, 'max_single': 100, 'warning': 'bradycardia, heart block'},
             }
             
             # Find matching drug
@@ -616,17 +610,14 @@ def check_interactions_api(request):
                         'type': 'single_dose_overdose',
                         'severity': 'high',
                         'drug': drug_name,
-                        'description': f"💀 CRITICAL: Single dose of {dose_mg}mg is {ratio:.0f}X higher than maximum safe single dose of {max_single}mg for {matched_drug}!",
-                        'recommendation': f"DO NOT DISPENSE. Maximum single dose is {max_single}mg. Contact prescriber immediately."
+                        'description': f"⚠️ Single dose of {dose_mg}mg exceeds maximum safe dose of {max_single}mg for {matched_drug}!",
+                        'recommendation': f"Maximum single dose is {max_single}mg. Contact prescriber."
                     })
                 
                 # Check daily dose
                 if daily_dose > max_daily:
                     ratio = daily_dose / max_daily
-                    if ratio >= 10:
-                        severity = 'critical'
-                        description = f"💀💀💀 EXTREME LETHAL OVERDOSE: {daily_dose}mg/day is {ratio:.0f}X the maximum safe dose of {max_daily}mg/day! THIS COULD BE FATAL!"
-                    elif ratio >= 5:
+                    if ratio >= 5:
                         severity = 'critical'
                         description = f"💀💀 CRITICAL OVERDOSE: {daily_dose}mg/day is {ratio:.1f}X the maximum safe dose of {max_daily}mg/day!"
                     elif ratio >= 2:
@@ -645,14 +636,6 @@ def check_interactions_api(request):
                         'description': description,
                         'recommendation': f"DO NOT DISPENSE. Maximum daily dose is {max_daily}mg. {limits['warning']}"
                     })
-                elif daily_dose > max_daily * 0.8:
-                    dosage_alerts.append({
-                        'type': 'high_dose_warning',
-                        'severity': 'moderate',
-                        'drug': drug_name,
-                        'description': f"Daily dose of {daily_dose}mg is approaching the maximum of {max_daily}mg ({int((daily_dose/max_daily)*100)}% of limit)",
-                        'recommendation': f"Consider if dose is appropriate. {limits['warning']}"
-                    })
             else:
                 # Unknown drug - flag for review if dose is high
                 if daily_dose > 2000:
@@ -660,8 +643,8 @@ def check_interactions_api(request):
                         'type': 'unverified_drug',
                         'severity': 'moderate',
                         'drug': drug_name,
-                        'description': f"⚠️ UNVERIFIED DRUG: '{drug_name}' at {daily_dose}mg/day. Safety limits not in database.",
-                        'recommendation': "Manual verification required. Please check dosing guidelines."
+                        'description': f"⚠️ '{drug_name}' at {daily_dose}mg/day. Safety limits not in database.",
+                        'recommendation': "Manual verification required. Check dosing guidelines."
                     })
             
             # Check quantity vs expected
@@ -675,56 +658,44 @@ def check_interactions_api(request):
                         'type': 'quantity_mismatch',
                         'severity': 'moderate',
                         'drug': drug_name,
-                        'description': f"Quantity ({quantity}) does not match expected quantity ({expected_quantity}) for {duration_days} days of treatment",
+                        'description': f"Quantity ({quantity}) does not match expected ({expected_quantity}) for {duration_days} days",
                         'recommendation': "Verify quantity with prescriber."
                     })
         
         # ============================================================
-        # STEP 2: DRUG-DRUG INTERACTION CHECKS (Existing AI)
+        # STEP 2: DRUG-DRUG INTERACTION CHECKS (AI MODEL)
         # ============================================================
         interaction_alerts = []
         
-        # Create temp prescription for interaction checking
-        class TempItem:
-            def __init__(self, drug_id, drug_name, dosage, frequency, duration, quantity):
-                self.drug = type('Drug', (), {'id': drug_id, 'name': drug_name})()
-                self.dosage = dosage
-                self.frequency = frequency
-                self.duration = duration
-                self.quantity = quantity
+        from ai_engine.predictor_fixed import fixed_predictor
         
-        temp_items = []
-        for item in items_data:
-            temp_items.append(TempItem(
-                item.get('drug_id'),
-                item.get('drug_name', ''),
-                item.get('dosage', ''),
-                item.get('frequency', ''),
-                item.get('duration', '7 days'),
-                item.get('quantity', 0)
-            ))
-        
-        class TempPrescription:
-            def __init__(self, patient, items):
-                self.patient = patient
-                self.items = items
-        
-        temp_prescription = TempPrescription(patient, temp_items)
-        
-        # Run interaction checks
-        try:
-            from .interaction_engine import DrugInteractionEngine
-            engine = DrugInteractionEngine()
-            interaction_alerts = engine.check_prescription(temp_prescription, request.user)
-        except Exception as e:
-            print(f"Interaction engine error: {e}")
+        # Check each drug pair
+        for i in range(len(items_data)):
+            for j in range(i+1, len(items_data)):
+                drug1_name = items_data[i].get('drug_name', '')
+                drug2_name = items_data[j].get('drug_name', '')
+                
+                # Use AI model for interaction prediction
+                result = fixed_predictor.predict(drug1_name, drug2_name)
+                
+                print(f"🤖 AI Prediction for {drug1_name} + {drug2_name}: {result}")
+                
+                if result.get('has_interaction'):
+                    interaction_alerts.append({
+                        'type': 'drug-drug',
+                        'severity': result.get('severity', 'moderate'),
+                        'drug1': drug1_name,
+                        'drug2': drug2_name,
+                        'description': f"AI detected: {result.get('recommendation', 'Potential interaction')}",
+                        'recommendation': result.get('recommendation', 'Consult pharmacist'),
+                        'confidence': result.get('confidence', 0),
+                        'source': result.get('source', 'ai_model')
+                    })
         
         # ============================================================
         # STEP 3: COMBINE ALERTS
         # ============================================================
         all_alerts = dosage_alerts + interaction_alerts
-        
-        # Count high risk alerts
         high_risk_count = sum(1 for a in all_alerts if a.get('severity') in ['high', 'critical'])
         
         print(f"📊 Total alerts: {len(all_alerts)}, High risk: {high_risk_count}")
@@ -750,30 +721,125 @@ def check_interactions_api(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-# Helper functions for dosage parsing
-def parse_dosage_to_mg(dosage_text: str) -> float:
-    """Parse dosage text to mg value"""
+# Helper function for dosage parsing
+def parse_dosage_to_mg(dosage_text: str, drug_strength: str = None) -> float:
+    """Parse dosage text to actual mg value using drug strength"""
     if not dosage_text:
         return None
     
     dosage_lower = dosage_text.lower()
     
-    # Extract number
+    # Extract the number of units
     num_match = re.search(r'(\d+(?:\.\d+)?)', dosage_lower)
     if not num_match:
         return None
     
-    dose_value = float(num_match.group(1))
+    units = float(num_match.group(1))
     
+    # If dosage already has mg, use that
     if 'mg' in dosage_lower:
-        return dose_value
-    elif 'mcg' in dosage_lower or 'microgram' in dosage_lower:
-        return dose_value / 1000
-    elif 'g' in dosage_lower or 'gram' in dosage_lower:
-        return dose_value * 1000
+        return units
     
-    # Assume mg if no unit
-    return dose_value
+    # If it's a tablet/capsule, use the drug's strength
+    if 'tablet' in dosage_lower or 'tab' in dosage_lower or 'capsule' in dosage_lower or 'cap' in dosage_lower:
+        if drug_strength:
+            # Extract strength from drug (e.g., "20mg" → 20)
+            strength_match = re.search(r'(\d+(?:\.\d+)?)\s*(mg|mcg|g)', drug_strength.lower())
+            if strength_match:
+                strength_value = float(strength_match.group(1))
+                strength_unit = strength_match.group(2)
+                if strength_unit == 'mg':
+                    return units * strength_value
+                elif strength_unit == 'mcg':
+                    return units * (strength_value / 1000)
+                elif strength_unit == 'g':
+                    return units * (strength_value * 1000)
+    
+    # For liquid forms (ml)
+    if 'ml' in dosage_lower:
+        if drug_strength:
+            strength_match = re.search(r'(\d+(?:\.\d+)?)\s*(mg|mcg|g)\s*/\s*ml', drug_strength.lower())
+            if strength_match:
+                strength_value = float(strength_match.group(1))
+                return units * strength_value
+    
+    # Default: assume each unit is 1mg (fallback)
+    return units
+
+
+def parse_frequency_to_times(frequency_text: str) -> int:
+    """Convert frequency text to number of times per day"""
+    if not frequency_text:
+        return 1
+    
+    freq_lower = frequency_text.lower()
+    
+    if 'once' in freq_lower or 'daily' in freq_lower:
+        return 1
+    elif 'twice' in freq_lower or 'bid' in freq_lower:
+        return 2
+    elif 'three' in freq_lower or 'thrice' in freq_lower or 'tid' in freq_lower:
+        return 3
+    elif 'four' in freq_lower or 'qid' in freq_lower:
+        return 4
+    elif 'every 4 hours' in freq_lower:
+        return 6
+    elif 'every 6 hours' in freq_lower:
+        return 4
+    elif 'every 8 hours' in freq_lower:
+        return 3
+    elif 'every 12 hours' in freq_lower:
+        return 2
+    
+    # Try to extract pattern "every X hours"
+    hour_match = re.search(r'every\s+(\d+)\s+hour', freq_lower)
+    if hour_match:
+        hours = int(hour_match.group(1))
+        if hours > 0:
+            return 24 // hours
+    
+    return 1
+
+
+# Helper functions for dosage parsing
+def parse_dosage_to_mg(dosage_text: str, drug_strength: str = None) -> float:
+    """
+    Parse dosage text to actual mg value using drug strength
+    Example: "1 tablet" + strength="20mg" → 20mg
+    """
+    if not dosage_text:
+        return None
+    
+    dosage_lower = dosage_text.lower()
+    
+    # Extract the number of units
+    num_match = re.search(r'(\d+(?:\.\d+)?)', dosage_lower)
+    if not num_match:
+        return None
+    
+    units = float(num_match.group(1))
+    
+    # If dosage already has mg, use that
+    if 'mg' in dosage_lower:
+        return units
+    
+    # If it's a tablet/capsule, use the drug's strength
+    if 'tablet' in dosage_lower or 'tab' in dosage_lower or 'capsule' in dosage_lower or 'cap' in dosage_lower:
+        if drug_strength:
+            # Extract strength from drug (e.g., "20mg" → 20)
+            strength_match = re.search(r'(\d+(?:\.\d+)?)\s*(mg|mcg|g)', drug_strength.lower())
+            if strength_match:
+                strength_value = float(strength_match.group(1))
+                strength_unit = strength_match.group(2)
+                if strength_unit == 'mg':
+                    return units * strength_value
+                elif strength_unit == 'mcg':
+                    return units * (strength_value / 1000)
+                elif strength_unit == 'g':
+                    return units * (strength_value * 1000)
+    
+    # Default: assume each unit is the standard dose
+    return units
 
 
 def parse_frequency_to_times(frequency_text: str) -> int:

@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Drugs - Pharmacy Management System{% endblock %}
+{% block title %}Inventory - Pharmacy Management System{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -56,9 +56,7 @@
                                     <span class="badge bg-success">No</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <span class="badge bg-secondary">{{ drug.total_stock }} units</span>
-                            </td>
+                            <td>{{ drug.total_stock }} units</td>
                             <td>
                                 <div class="btn-group" role="group">
                                     <a href="{% url 'inventory:edit' drug.id %}" class="btn btn-sm btn-warning" title="Edit">
@@ -67,63 +65,12 @@
                                     <a href="{% url 'inventory:add_batch' drug.id %}" class="btn btn-sm btn-success" title="Add Stock">
                                         <i class="fas fa-plus-circle"></i>
                                     </a>
-                                    <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#stockModal{{ drug.id }}" title="View Stock">
+                                    <button type="button" class="btn btn-sm btn-info view-stock-btn" data-drug-id="{{ drug.id }}" data-drug-name="{{ drug.name }}" title="View Stock">
                                         <i class="fas fa-boxes"></i>
                                     </button>
                                 </div>
                             </td>
                         </tr>
-                        
-                        <!-- Stock Modal -->
-                        <div class="modal fade" id="stockModal{{ drug.id }}" tabindex="-1">
-                            <div class="modal-dialog modal-dialog-centered">
-                                <div class="modal-content">
-                                    <div class="modal-header bg-primary text-white">
-                                        <h5 class="modal-title">{{ drug.name }} - Stock Details</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        {% if drug.batches.all %}
-                                            <table class="table table-sm">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Batch #</th>
-                                                        <th>Quantity</th>
-                                                        <th>Expiry Date</th>
-                                                        <th>Status</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {% for batch in drug.batches.all %}
-                                                    <tr class="{% if batch.quantity <= 10 %}table-warning{% endif %}">
-                                                        <td><small>{{ batch.batch_number }}</small></td>
-                                                        <td>{{ batch.quantity }}</td>
-                                                        <td>{{ batch.expiry_date|date:"Y-m-d" }}</td>
-                                                        <td>
-                                                            {% if batch.quantity == 0 %}
-                                                                <span class="badge bg-secondary">Out of Stock</span>
-                                                            {% elif batch.quantity <= 10 %}
-                                                                <span class="badge bg-warning">Low Stock</span>
-                                                            {% else %}
-                                                                <span class="badge bg-success">In Stock</span>
-                                                            {% endif %}
-                                                        </td>
-                                                    </tr>
-                                                    {% endfor %}
-                                                </tbody>
-                                            </table>
-                                        {% else %}
-                                            <p class="text-muted text-center">No stock batches available.</p>
-                                            <div class="text-center">
-                                                <a href="{% url 'inventory:add_batch' drug.id %}" class="btn btn-sm btn-success">
-                                                    <i class="fas fa-plus"></i> Add First Batch
-                                                </a>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                         {% empty %}
                         <tr>
                             <td colspan="7" class="text-center py-4">
@@ -141,4 +88,65 @@
         </div>
     </div>
 </div>
+
+<!-- Stock Modal - Placed OUTSIDE the table and content block -->
+<div class="modal fade" id="stockModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="stockModalTitle">Stock Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="stockModalBody">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin"></i> Loading...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+// Dynamic stock modal using AJAX
+$(document).ready(function() {
+    $('.view-stock-btn').click(function() {
+        var drugId = $(this).data('drug-id');
+        var drugName = $(this).data('drug-name');
+        
+        $('#stockModalTitle').text(drugName + ' - Stock Details');
+        $('#stockModalBody').html('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</div>');
+        
+        // Fetch stock data via AJAX
+        $.get('/inventory/api/stock/' + drugId + '/', function(data) {
+            if (data.batches && data.batches.length > 0) {
+                var html = '<table class="table table-sm">';
+                html += '<thead><tr><th>Batch #</th><th>Quantity</th><th>Expiry Date</th><th>Status</th></tr></thead><tbody>';
+                
+                data.batches.forEach(function(batch) {
+                    var statusClass = batch.quantity == 0 ? 'bg-secondary' : (batch.quantity <= 10 ? 'bg-warning' : 'bg-success');
+                    var statusText = batch.quantity == 0 ? 'Out of Stock' : (batch.quantity <= 10 ? 'Low Stock' : 'In Stock');
+                    
+                    html += '<tr>';
+                    html += '<td><small>' + batch.batch_number + '</small></td>';
+                    html += '<td>' + batch.quantity + '</td>';
+                    html += '<td>' + batch.expiry_date + '</td>';
+                    html += '<td><span class="badge ' + statusClass + '">' + statusText + '</span></td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+                $('#stockModalBody').html(html);
+            } else {
+                $('#stockModalBody').html('<p class="text-muted text-center">No stock batches available.</p><div class="text-center"><a href="/inventory/' + drugId + '/add-batch/" class="btn btn-sm btn-success">Add First Batch</a></div>');
+            }
+        }).fail(function() {
+            $('#stockModalBody').html('<p class="text-danger text-center">Error loading stock data.</p>');
+        });
+        
+        $('#stockModal').modal('show');
+    });
+});
+</script>
 {% endblock %}

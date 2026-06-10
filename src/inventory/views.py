@@ -353,3 +353,20 @@ def api_supplier_products(request, supplier_id):
         })
     
     return JsonResponse({'products': products})
+
+
+@login_required
+def api_stock_details(request, drug_id):
+    """API endpoint to get stock details for a drug"""
+    drug = get_object_or_404(Drug, id=drug_id, pharmacy=request.pharmacy)
+    batches = drug.batches.filter(pharmacy=request.pharmacy).order_by('expiry_date')
+    
+    data = {
+        'drug_name': drug.name,
+        'batches': [{
+            'batch_number': batch.batch_number,
+            'quantity': batch.quantity,
+            'expiry_date': batch.expiry_date.strftime('%Y-%m-%d'),
+        } for batch in batches]
+    }
+    return JsonResponse(data)

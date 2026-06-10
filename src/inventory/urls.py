@@ -16,4 +16,5 @@ urlpatterns = [
     path('alerts/<int:pk>/resolve/', views.resolve_alert, name='resolve_alert'),
     path('api/search/', views.api_search_drugs, name='api_search_drugs'),
     path('api/supplier/<int:supplier_id>/products/', views.api_supplier_products, name='api_supplier_products'),
+    path('api/stock/<int:drug_id>/', views.api_stock_details, name='api_stock_details'),
 ]
